@@ -4,30 +4,10 @@ use anyhow::{bail, Result};
 use std::process::Command;
 
 use super::{session_exists_from_cache, SESSION_PREFIX};
+use crate::process::{self, ProcessInputState};
 use crate::session::Status;
 
 const SPINNER_CHARS: &[&str] = &["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-
-const CLAUDE_WHIMSICAL_WORDS: &[&str] = &[
-    "accomplishing", "actioning", "actualizing", "baking", "booping",
-    "brewing", "calculating", "cerebrating", "channelling", "churning",
-    "clauding", "coalescing", "cogitating", "combobulating", "computing",
-    "concocting", "conjuring", "considering", "contemplating", "cooking",
-    "crafting", "creating", "crunching", "deciphering", "deliberating",
-    "determining", "discombobulating", "divining", "doing", "effecting",
-    "elucidating", "enchanting", "envisioning", "finagling", "flibbertigibbeting",
-    "forging", "forming", "frolicking", "generating", "germinating",
-    "hatching", "herding", "honking", "hustling", "ideating",
-    "imagining", "incubating", "inferring", "jiving", "manifesting",
-    "marinating", "meandering", "moseying", "mulling", "mustering",
-    "musing", "noodling", "percolating", "perusing", "philosophising",
-    "pondering", "pontificating", "processing", "puttering", "puzzling",
-    "reticulating", "ruminating", "scheming", "schlepping", "shimmying",
-    "shucking", "simmering", "smooshing", "spelunking", "spinning",
-    "stewing", "sussing", "synthesizing", "thinking", "tinkering",
-    "transmuting", "unfurling", "unravelling", "vibing", "wandering",
-    "whirring", "wibbling", "wizarding", "working", "wrangling",
-];
 
 fn strip_ansi(content: &str) -> String {
     let mut result = content.to_string();
@@ -187,9 +167,19 @@ impl Session {
         }
     }
 
+    pub fn get_pane_pid(&self) -> Option<u32> {
+        process::get_pane_pid(&self.name)
+    }
+
+    pub fn get_foreground_pid(&self) -> Option<u32> {
+        let pane_pid = self.get_pane_pid()?;
+        process::get_foreground_pid(pane_pid).or(Some(pane_pid))
+    }
+
     pub fn detect_status(&self, tool: &str) -> Result<Status> {
         let content = self.capture_pane(50)?;
-        Ok(detect_status_from_content(&content, tool))
+        let fg_pid = self.get_foreground_pid();
+        Ok(detect_status_from_content(&content, tool, fg_pid))
     }
 
 }
@@ -207,7 +197,24 @@ fn sanitize_session_name(name: &str) -> String {
         .collect()
 }
 
-fn detect_status_from_content(content: &str, tool: &str) -> Status {
+fn detect_status_from_content(content: &str, tool: &str, fg_pid: Option<u32>) -> Status {
+    // Layer 1: Process state detection (most reliable)
+    if let Some(pid) = fg_pid {
+        let proc_state = process::is_waiting_for_input(pid);
+        match proc_state {
+            ProcessInputState::WaitingForInput => {
+                return Status::Waiting;
+            }
+            ProcessInputState::Running => {
+                return Status::Running;
+            }
+            _ => {
+                // Unknown or sleeping on other I/O - fall through to pattern matching
+            }
+        }
+    }
+
+    // Layer 2: Pattern matching (fallback for when process detection is unavailable)
     let lines: Vec<&str> = content.lines().collect();
     let last_lines = if lines.len() > 10 {
         &lines[lines.len() - 10..]
@@ -219,9 +226,7 @@ fn detect_status_from_content(content: &str, tool: &str) -> Status {
 
     match tool {
         "claude" => detect_claude_status(&last_content),
-        "gemini" => detect_gemini_status(&last_content_lower),
         "opencode" => detect_opencode_status(&last_content_lower),
-        "codex" => detect_generic_status(&last_content_lower),
         _ => detect_shell_status(&last_content_lower),
     }
 }
@@ -232,19 +237,12 @@ fn detect_claude_status(content: &str) -> Status {
     let recent_content = last_15.iter().rev().cloned().collect::<Vec<_>>().join("\n");
     let recent_lower = recent_content.to_lowercase();
 
-    // BUSY indicators - check FIRST (if busy, definitely not waiting)
-    let busy_indicators = [
-        "esc to interrupt",
-        "(esc to interrupt)",
-        "· esc to interrupt",
-    ];
-    for indicator in &busy_indicators {
-        if recent_lower.contains(indicator) {
-            return Status::Running;
-        }
+    // RUNNING: "esc to interrupt" is shown when Claude is busy
+    if recent_lower.contains("esc to interrupt") {
+        return Status::Running;
     }
 
-    // Check for spinner characters in last 5 lines
+    // Also check for spinner characters in last 5 lines (backup)
     let last_5: Vec<&str> = lines.iter().rev().take(5).copied().collect();
     for line in &last_5 {
         for spinner in SPINNER_CHARS {
@@ -254,38 +252,21 @@ fn detect_claude_status(content: &str) -> Status {
         }
     }
 
-    // Check for whimsical words + "tokens" pattern (e.g., "thinking... (25s · 340 tokens)")
-    if recent_lower.contains("tokens") {
-        for word in CLAUDE_WHIMSICAL_WORDS {
-            if recent_lower.contains(word) {
-                return Status::Running;
-            }
-        }
+    // WAITING: Selection menus (shows "Enter to select" or "Esc to cancel")
+    // These indicate interactive prompts waiting for user choice
+    if recent_lower.contains("enter to select") || recent_lower.contains("esc to cancel") {
+        return Status::Waiting;
     }
 
-    // Check for "thinking" or "connecting" with tokens (common Claude status)
-    if (recent_lower.contains("thinking") || recent_lower.contains("connecting"))
-        && recent_lower.contains("tokens") {
-        return Status::Running;
-    }
-
-    // WAITING indicators - Permission prompts
+    // WAITING: Permission prompts (Claude-specific UI elements)
     let permission_prompts = [
-        "No, and tell Claude what to do differently",
         "Yes, allow once",
         "Yes, allow always",
         "Allow once",
         "Allow always",
-        "│ Do you want",
-        "│ Would you like",
-        "│ Allow",
         "❯ Yes",
         "❯ No",
-        "❯ Allow",
         "Do you trust the files in this folder?",
-        "Allow this MCP server",
-        "Run this command?",
-        "Execute this?",
     ];
     for prompt in &permission_prompts {
         if content.contains(prompt) {
@@ -293,82 +274,26 @@ fn detect_claude_status(content: &str) -> Status {
         }
     }
 
-    // WAITING - Check if last non-empty line is ">" input prompt
+    // WAITING: Selection cursor with numbered options (e.g., "❯ 1.", "❯ 2.")
+    if recent_content.contains("❯") && (recent_content.contains("1.") || recent_content.contains("2.")) {
+        return Status::Waiting;
+    }
+
+    // WAITING: Check if last non-empty line is ">" input prompt
     if let Some(last_line) = lines.iter().rev().find(|l| !l.trim().is_empty()) {
         let clean_line = strip_ansi(last_line).trim().to_string();
         if clean_line == ">" || clean_line == "> " {
             return Status::Waiting;
         }
-        // Check for prompt with partial user input (user started typing)
-        if clean_line.starts_with("> ") && !clean_line.contains("esc") && clean_line.len() < 100 {
+        if clean_line.starts_with("> ") && !clean_line.to_lowercase().contains("esc") && clean_line.len() < 100 {
             return Status::Waiting;
         }
     }
 
-    // WAITING - Question prompts
-    let question_prompts = [
-        "Continue?",
-        "Proceed?",
-        "(Y/n)",
-        "(y/N)",
-        "[Y/n]",
-        "[y/N]",
-        "(yes/no)",
-        "[yes/no]",
-        "Approve this plan?",
-        "Execute plan?",
-    ];
+    // WAITING: Y/N confirmation prompts
+    let question_prompts = ["(Y/n)", "(y/N)", "[Y/n]", "[y/N]"];
     for prompt in &question_prompts {
         if recent_content.contains(prompt) {
-            return Status::Waiting;
-        }
-    }
-
-    // WAITING - Completion indicators + ">" prompt nearby
-    let completion_indicators = [
-        "task completed",
-        "done!",
-        "finished",
-        "what would you like",
-        "what else",
-        "anything else",
-        "let me know if",
-    ];
-    let has_completion = completion_indicators.iter().any(|ind| recent_lower.contains(ind));
-    if has_completion {
-        for line in &last_5 {
-            let clean = strip_ansi(line).trim().to_string();
-            if clean == ">" || clean == "> " {
-                return Status::Waiting;
-            }
-        }
-    }
-
-    Status::Idle
-}
-
-fn detect_gemini_status(content: &str) -> Status {
-    let waiting_patterns = [
-        "gemini>",
-        "> ",
-        "enter your",
-        "type your",
-    ];
-
-    let running_patterns = [
-        "generating",
-        "thinking",
-        "processing",
-    ];
-
-    for pattern in &running_patterns {
-        if content.contains(pattern) {
-            return Status::Running;
-        }
-    }
-
-    for pattern in &waiting_patterns {
-        if content.contains(pattern) {
             return Status::Waiting;
         }
     }
@@ -382,23 +307,12 @@ fn detect_opencode_status(content: &str) -> Status {
     let recent_content = last_15.iter().rev().cloned().collect::<Vec<_>>().join("\n");
     let recent_lower = recent_content.to_lowercase();
 
-    // RUNNING indicators - check FIRST
-    let busy_indicators = [
-        "ctrl+c",
-        "ctrl-c",
-        "escape to cancel",
-        "esc to cancel",
-        "press esc",
-        "to interrupt",
-        "to cancel",
-    ];
-    for indicator in &busy_indicators {
-        if recent_lower.contains(indicator) {
-            return Status::Running;
-        }
+    // RUNNING: OpenCode shows "esc to interrupt" at the bottom when busy (same as Claude Code)
+    if recent_lower.contains("esc to interrupt") || recent_lower.contains("esc interrupt") {
+        return Status::Running;
     }
 
-    // Check for spinner characters in last 5 lines
+    // Also check for spinner characters in last 5 lines
     let last_5: Vec<&str> = lines.iter().rev().take(5).copied().collect();
     for line in &last_5 {
         for spinner in SPINNER_CHARS {
@@ -408,58 +322,19 @@ fn detect_opencode_status(content: &str) -> Status {
         }
     }
 
-    // Running status words
-    let running_patterns = [
-        "generating",
-        "thinking",
-        "working",
-        "processing",
-        "loading",
-        "executing",
-        "running",
-        "streaming",
-        "writing",
-        "reading",
-        "analyzing",
-        "compiling",
-    ];
-    for pattern in &running_patterns {
-        if recent_lower.contains(pattern) && !recent_lower.contains("finished") {
-            return Status::Running;
-        }
+    // WAITING: Selection menus (shows "Enter to select" or "Esc to cancel")
+    if recent_lower.contains("enter to select") || recent_lower.contains("esc to cancel") {
+        return Status::Waiting;
     }
 
-    // Check for progress indicators (ellipsis animation)
-    if recent_lower.contains("...") && !recent_lower.contains("done") && !recent_lower.contains("complete") {
-        let has_status_word = ["wait", "load", "process", "think", "generat", "work"]
-            .iter()
-            .any(|w| recent_lower.contains(w));
-        if has_status_word {
-            return Status::Running;
-        }
-    }
-
-    // WAITING indicators - Permission/confirmation prompts
+    // WAITING: Permission/confirmation prompts
     let permission_prompts = [
-        "allow",
-        "approve",
-        "confirm",
-        "accept",
-        "deny",
-        "reject",
-        "yes/no",
-        "y/n",
-        "[y/n]",
         "(y/n)",
-        "[yes/no]",
-        "(yes/no)",
+        "[y/n]",
         "continue?",
         "proceed?",
-        "execute?",
-        "run this",
-        "apply changes",
-        "do you want",
-        "would you like",
+        "approve",
+        "allow",
     ];
     for prompt in &permission_prompts {
         if recent_lower.contains(prompt) {
@@ -467,24 +342,21 @@ fn detect_opencode_status(content: &str) -> Status {
         }
     }
 
-    // WAITING - Check if last non-empty line is input prompt
+    // WAITING: Selection cursor with numbered options
+    if recent_content.contains("❯") && (recent_content.contains("1.") || recent_content.contains("2.")) {
+        return Status::Waiting;
+    }
+
+    // WAITING: Check if last non-empty line is input prompt
     if let Some(last_line) = lines.iter().rev().find(|l| !l.trim().is_empty()) {
         let clean_line = strip_ansi(last_line).trim().to_string();
-        let clean_lower = clean_line.to_lowercase();
 
-        // Common opencode input prompts
+        // OpenCode input prompts
         if clean_line == ">" || clean_line == "> " || clean_line == ">>" {
             return Status::Waiting;
         }
-        if clean_lower.starts_with("> ") && !clean_lower.contains("esc") && clean_line.len() < 100 {
+        if clean_line.starts_with("> ") && !clean_line.to_lowercase().contains("esc") && clean_line.len() < 100 {
             return Status::Waiting;
-        }
-        // Check for prompt patterns like "user:" or "input:"
-        if clean_lower.ends_with(":") || clean_lower.ends_with(": ") {
-            let prompt_words = ["input", "user", "you", "message", "query", "prompt"];
-            if prompt_words.iter().any(|w| clean_lower.contains(w)) {
-                return Status::Waiting;
-            }
         }
     }
 
@@ -508,28 +380,6 @@ fn detect_opencode_status(content: &str) -> Status {
                 return Status::Waiting;
             }
         }
-    }
-
-    Status::Idle
-}
-
-fn detect_generic_status(content: &str) -> Status {
-    let running_patterns = [
-        "running",
-        "processing",
-        "loading",
-        "thinking",
-    ];
-
-    for pattern in &running_patterns {
-        if content.contains(pattern) {
-            return Status::Running;
-        }
-    }
-
-    // Check for common prompts
-    if content.ends_with("$ ") || content.ends_with("> ") || content.ends_with("# ") {
-        return Status::Waiting;
     }
 
     Status::Idle
@@ -580,16 +430,12 @@ mod tests {
         // Spinner characters indicate active processing
         assert_eq!(detect_claude_status("Processing ⠋"), Status::Running);
         assert_eq!(detect_claude_status("Loading ⠹"), Status::Running);
-
-        // Whimsical words + tokens pattern
-        assert_eq!(detect_claude_status("Flibbertigibbeting... (25s · 340 tokens)"), Status::Running);
-        assert_eq!(detect_claude_status("Thinking... (10s · 100 tokens)"), Status::Running);
     }
 
     #[test]
     fn test_detect_claude_status_waiting() {
         // Permission prompts
-        assert_eq!(detect_claude_status("Yes, allow once\nNo, and tell Claude what to do differently"), Status::Waiting);
+        assert_eq!(detect_claude_status("Yes, allow once"), Status::Waiting);
         assert_eq!(detect_claude_status("Do you trust the files in this folder?"), Status::Waiting);
 
         // Input prompt
@@ -598,6 +444,10 @@ mod tests {
 
         // Question prompts
         assert_eq!(detect_claude_status("Continue? (Y/n)"), Status::Waiting);
+
+        // Selection menus
+        assert_eq!(detect_claude_status("Enter to select · Tab/Arrow keys to navigate · Esc to cancel"), Status::Waiting);
+        assert_eq!(detect_claude_status("❯ 1. Planned activities\n  2. Spontaneous"), Status::Waiting);
     }
 
     #[test]
@@ -616,28 +466,21 @@ mod tests {
 
     #[test]
     fn test_detect_opencode_status_running() {
-        // Interrupt hints indicate active processing
-        assert_eq!(detect_opencode_status("Processing your request (ctrl+c to cancel)"), Status::Running);
-        assert_eq!(detect_opencode_status("Working... press esc to interrupt"), Status::Running);
+        // "esc to interrupt" at bottom = running (same pattern as Claude Code)
+        assert_eq!(detect_opencode_status("Processing your request\nesc to interrupt"), Status::Running);
+        assert_eq!(detect_opencode_status("Working... esc interrupt"), Status::Running);
 
         // Spinner characters indicate active processing
         assert_eq!(detect_opencode_status("Generating ⠋"), Status::Running);
         assert_eq!(detect_opencode_status("Loading ⠹"), Status::Running);
-
-        // Running status words
-        assert_eq!(detect_opencode_status("Generating response..."), Status::Running);
-        assert_eq!(detect_opencode_status("Thinking about your question"), Status::Running);
-        assert_eq!(detect_opencode_status("Processing request"), Status::Running);
-        assert_eq!(detect_opencode_status("Working on it..."), Status::Running);
-        assert_eq!(detect_opencode_status("Streaming response"), Status::Running);
     }
 
     #[test]
     fn test_detect_opencode_status_waiting() {
         // Permission prompts
         assert_eq!(detect_opencode_status("Allow this action? [y/n]"), Status::Waiting);
-        assert_eq!(detect_opencode_status("Do you want to continue?"), Status::Waiting);
-        assert_eq!(detect_opencode_status("Approve changes (yes/no)"), Status::Waiting);
+        assert_eq!(detect_opencode_status("Continue? (y/n)"), Status::Waiting);
+        assert_eq!(detect_opencode_status("Approve changes"), Status::Waiting);
 
         // Input prompt
         assert_eq!(detect_opencode_status("Task complete.\n>"), Status::Waiting);

@@ -7,7 +7,7 @@ A terminal session manager for AI coding agents, written in Rust.
 - **TUI Dashboard** - Visual interface to manage all your AI coding sessions
 - **Session Management** - Create, attach, detach, and delete sessions
 - **Group Organization** - Organize sessions into hierarchical folders
-- **Status Detection** - Automatic status detection for Claude, Gemini, OpenCode, and Codex
+- **Status Detection** - Automatic status detection for Claude Code and OpenCode
 - **tmux Integration** - Sessions persist in tmux for reliability
 - **MCP Server Management** - Configure and manage Model Context Protocol servers
 - **Multi-profile Support** - Separate workspaces for different projects
@@ -24,16 +24,16 @@ A terminal session manager for AI coding agents, written in Rust.
 cargo build --release
 ```
 
-The binary will be at `target/release/agent-of-empires`.
+The binary will be at `target/release/aoe`.
 
 ## Quick Start
 
 ```bash
 # Launch the TUI
-./target/release/agent-of-empires
+./target/release/aoe
 
 # Or add a session directly from CLI
-./target/release/agent-of-empires add /path/to/project
+./target/release/aoe add /path/to/project
 ```
 
 ## Using the TUI
@@ -41,8 +41,8 @@ The binary will be at `target/release/agent-of-empires`.
 ### Launching
 
 ```bash
-agent-of-empires           # Launch TUI with default profile
-agent-of-empires -p work   # Launch with a specific profile
+aoe           # Launch TUI with default profile
+aoe -p work   # Launch with a specific profile
 ```
 
 ### Keyboard Shortcuts
@@ -89,38 +89,38 @@ agent-of-empires -p work   # Launch with a specific profile
 
 ```bash
 # Session management
-agent-of-empires add <path>              # Add a new session
-agent-of-empires add . --title "my-proj" # Add with custom title
-agent-of-empires list                    # List all sessions
-agent-of-empires list --json             # List as JSON
-agent-of-empires remove <id|title>       # Remove a session
-agent-of-empires status                  # Show status summary
+aoe add <path>              # Add a new session
+aoe add . --title "my-proj" # Add with custom title
+aoe list                    # List all sessions
+aoe list --json             # List as JSON
+aoe remove <id|title>       # Remove a session
+aoe status                  # Show status summary
 
 # Session lifecycle
-agent-of-empires session start <id>      # Start a session
-agent-of-empires session stop <id>       # Stop a session
-agent-of-empires session restart <id>    # Restart a session
-agent-of-empires session attach <id>     # Attach to a session
-agent-of-empires session show <id>       # Show session details
+aoe session start <id>      # Start a session
+aoe session stop <id>       # Stop a session
+aoe session restart <id>    # Restart a session
+aoe session attach <id>     # Attach to a session
+aoe session show <id>       # Show session details
 
 # Groups
-agent-of-empires group create <name>     # Create a group
-agent-of-empires group list              # List groups
-agent-of-empires group delete <name>     # Delete a group
+aoe group create <name>     # Create a group
+aoe group list              # List groups
+aoe group delete <name>     # Delete a group
 
 # Profiles
-agent-of-empires profile list            # List profiles
-agent-of-empires profile create <name>   # Create a profile
-agent-of-empires profile delete <name>   # Delete a profile
+aoe profile list            # List profiles
+aoe profile create <name>   # Create a profile
+aoe profile delete <name>   # Delete a profile
 
 # MCP servers
-agent-of-empires mcp list                # List configured MCP servers
-agent-of-empires mcp attach <name>       # Attach MCP to current session
-agent-of-empires mcp detach <name>       # Detach MCP from current session
+aoe mcp list                # List configured MCP servers
+aoe mcp attach <name>       # Attach MCP to current session
+aoe mcp detach <name>       # Detach MCP from current session
 
 # Maintenance
-agent-of-empires update                  # Check for updates
-agent-of-empires uninstall               # Uninstall Agent of Empires
+aoe update                  # Check for updates
+aoe uninstall               # Uninstall Agent of Empires
 ```
 
 ## Configuration
@@ -161,6 +161,9 @@ cargo clippy
 
 # Run in debug mode
 AGENT_OF_EMPIRES_DEBUG=1 cargo run
+
+# Or run the built binary
+./target/release/aoe
 ```
 
 ## Dependencies

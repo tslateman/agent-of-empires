@@ -22,6 +22,7 @@ pub struct HomeView {
     // UI state
     cursor: usize,
     selected_session: Option<String>,
+    selected_group: Option<String>,
 
     // Dialogs
     show_help: bool,
@@ -53,6 +54,7 @@ impl HomeView {
             flat_items,
             cursor: 0,
             selected_session: None,
+            selected_group: None,
             show_help: false,
             new_dialog: None,
             confirm_dialog: None,
@@ -125,8 +127,13 @@ impl HomeView {
                 }
                 super::dialogs::DialogResult::Submit(data) => {
                     self.new_dialog = None;
-                    if let Err(e) = self.create_session(data) {
-                        tracing::error!("Failed to create session: {}", e);
+                    match self.create_session(data) {
+                        Ok(session_id) => {
+                            return Some(Action::AttachSession(session_id));
+                        }
+                        Err(e) => {
+                            tracing::error!("Failed to create session: {}", e);
+                        }
                     }
                 }
             }
@@ -144,7 +151,11 @@ impl HomeView {
                     self.confirm_dialog = None;
                     if action == "delete" {
                         if let Err(e) = self.delete_selected() {
-                            tracing::error!("Failed to delete: {}", e);
+                            tracing::error!("Failed to delete session: {}", e);
+                        }
+                    } else if action == "delete_group" {
+                        if let Err(e) = self.delete_selected_group() {
+                            tracing::error!("Failed to delete group: {}", e);
                         }
                     }
                 }
@@ -195,6 +206,24 @@ impl HomeView {
                         "Delete Session",
                         "Are you sure you want to delete this session?",
                         "delete",
+                    ));
+                } else if let Some(group_path) = &self.selected_group {
+                    let session_count = self.instances
+                        .iter()
+                        .filter(|i| i.group_path == *group_path || i.group_path.starts_with(&format!("{}/", group_path)))
+                        .count();
+                    let message = if session_count > 0 {
+                        format!(
+                            "Delete group '{}'? It contains {} session(s) which will be moved to the default group.",
+                            group_path, session_count
+                        )
+                    } else {
+                        format!("Are you sure you want to delete group '{}'?", group_path)
+                    };
+                    self.confirm_dialog = Some(ConfirmDialog::new(
+                        "Delete Group",
+                        &message,
+                        "delete_group",
                     ));
                 }
             }
@@ -291,10 +320,16 @@ impl HomeView {
 
         if let Some(idx) = item_idx {
             if let Some(item) = self.flat_items.get(idx) {
-                self.selected_session = match item {
-                    Item::Session { id, .. } => Some(id.clone()),
-                    Item::Group { .. } => None,
-                };
+                match item {
+                    Item::Session { id, .. } => {
+                        self.selected_session = Some(id.clone());
+                        self.selected_group = None;
+                    }
+                    Item::Group { path, .. } => {
+                        self.selected_session = None;
+                        self.selected_group = Some(path.clone());
+                    }
+                }
             }
         }
     }
@@ -334,18 +369,19 @@ impl HomeView {
         self.update_selected();
     }
 
-    fn create_session(&mut self, data: super::dialogs::NewSessionData) -> anyhow::Result<()> {
+    fn create_session(&mut self, data: super::dialogs::NewSessionData) -> anyhow::Result<String> {
         let mut instance = Instance::new(&data.title, &data.path);
         instance.group_path = data.group;
         instance.command = data.command.clone();
         instance.tool = if data.command.to_lowercase().contains("claude") {
             "claude".to_string()
-        } else if data.command.to_lowercase().contains("gemini") {
-            "gemini".to_string()
+        } else if data.command.to_lowercase().contains("opencode") {
+            "opencode".to_string()
         } else {
             "shell".to_string()
         };
 
+        let session_id = instance.id.clone();
         self.instances.push(instance.clone());
         self.group_tree = GroupTree::new_with_groups(&self.instances, &self.groups);
         if !instance.group_path.is_empty() {
@@ -355,7 +391,7 @@ impl HomeView {
             .save_with_groups(&self.instances, &self.group_tree)?;
 
         self.reload()?;
-        Ok(())
+        Ok(session_id)
     }
 
     fn delete_selected(&mut self) -> anyhow::Result<()> {
@@ -369,6 +405,25 @@ impl HomeView {
             }
 
             self.group_tree = GroupTree::new_with_groups(&self.instances, &self.groups);
+            self.storage
+                .save_with_groups(&self.instances, &self.group_tree)?;
+
+            self.reload()?;
+        }
+        Ok(())
+    }
+
+    fn delete_selected_group(&mut self) -> anyhow::Result<()> {
+        if let Some(group_path) = self.selected_group.take() {
+            let prefix = format!("{}/", group_path);
+            for inst in &mut self.instances {
+                if inst.group_path == group_path || inst.group_path.starts_with(&prefix) {
+                    inst.group_path = String::new();
+                }
+            }
+
+            self.group_tree = GroupTree::new_with_groups(&self.instances, &self.groups);
+            self.group_tree.delete_group(&group_path);
             self.storage
                 .save_with_groups(&self.instances, &self.group_tree)?;
 

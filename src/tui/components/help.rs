@@ -47,7 +47,7 @@ impl HelpOverlay {
             ("Actions", vec![
                 ("Enter", "Attach to session"),
                 ("n", "New session"),
-                ("d", "Delete session"),
+                ("d", "Delete session/group"),
                 ("r", "Refresh"),
                 ("f", "Fork session (Claude)"),
                 ("M", "MCP Manager"),

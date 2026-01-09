@@ -20,9 +20,6 @@ pub struct Config {
     pub claude: ClaudeConfig,
 
     #[serde(default)]
-    pub gemini: GeminiConfig,
-
-    #[serde(default)]
     pub updates: UpdatesConfig,
 
     #[serde(default)]
@@ -44,12 +41,6 @@ pub struct ThemeConfig {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ClaudeConfig {
-    #[serde(default)]
-    pub config_dir: Option<String>,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct GeminiConfig {
     #[serde(default)]
     pub config_dir: Option<String>,
 }
@@ -154,18 +145,6 @@ pub fn get_update_settings() -> UpdatesConfig {
 pub fn get_claude_config_dir() -> Option<PathBuf> {
     let config = load_config().ok().flatten()?;
     config.claude.config_dir.map(|s| {
-        if s.starts_with("~/") {
-            if let Some(home) = dirs::home_dir() {
-                return home.join(&s[2..]);
-            }
-        }
-        PathBuf::from(s)
-    })
-}
-
-pub fn get_gemini_config_dir() -> Option<PathBuf> {
-    let config = load_config().ok().flatten()?;
-    config.gemini.config_dir.map(|s| {
         if s.starts_with("~/") {
             if let Some(home) = dirs::home_dir() {
                 return home.join(&s[2..]);

@@ -39,6 +39,9 @@ impl App {
         // Refresh tmux session cache
         crate::tmux::refresh_session_cache();
 
+        let mut last_status_refresh = std::time::Instant::now();
+        const STATUS_REFRESH_INTERVAL: Duration = Duration::from_millis(500);
+
         loop {
             // Force full redraw if needed (e.g., after returning from tmux)
             if self.needs_redraw {
@@ -46,17 +49,27 @@ impl App {
                 self.needs_redraw = false;
             }
 
-            // Poll for events with timeout for status updates
-            if event::poll(Duration::from_millis(500))? {
+            // Poll with short timeout for responsive input
+            if event::poll(Duration::from_millis(50))? {
                 if let Event::Key(key) = event::read()? {
                     self.handle_key(key, terminal).await?;
+
+                    // Draw immediately after input for responsiveness
+                    terminal.draw(|f| self.render(f))?;
+
+                    if self.should_quit {
+                        break;
+                    }
+                    continue; // Skip status refresh this iteration for responsiveness
                 }
             }
 
-            // Periodic status refresh
-            self.home.refresh_status();
-
-            terminal.draw(|f| self.render(f))?;
+            // Periodic status refresh (only when no input pending)
+            if last_status_refresh.elapsed() >= STATUS_REFRESH_INTERVAL {
+                self.home.refresh_status();
+                last_status_refresh = std::time::Instant::now();
+                terminal.draw(|f| self.render(f))?;
+            }
 
             if self.should_quit {
                 break;

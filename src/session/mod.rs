@@ -2,7 +2,6 @@
 
 pub mod claude;
 pub mod config;
-pub mod gemini;
 mod groups;
 mod instance;
 pub mod mcp;

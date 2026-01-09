@@ -83,8 +83,6 @@ struct SessionDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
     claude_session_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    gemini_session_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     parent_session_id: Option<String>,
     profile: String,
 }
@@ -260,7 +258,6 @@ async fn show_session(profile: &str, args: ShowArgs) -> Result<()> {
             command: inst.command.clone(),
             status: format!("{:?}", inst.status).to_lowercase(),
             claude_session_id: inst.claude_session_id.clone(),
-            gemini_session_id: inst.gemini_session_id.clone(),
             parent_session_id: inst.parent_session_id.clone(),
             profile: storage.profile().to_string(),
         };
@@ -276,9 +273,6 @@ async fn show_session(profile: &str, args: ShowArgs) -> Result<()> {
         println!("  Profile: {}", storage.profile());
         if let Some(claude_id) = &inst.claude_session_id {
             println!("  Claude Session: {}", claude_id);
-        }
-        if let Some(gemini_id) = &inst.gemini_session_id {
-            println!("  Gemini Session: {}", gemini_id);
         }
         if let Some(parent_id) = &inst.parent_session_id {
             println!("  Parent:  {}", parent_id);

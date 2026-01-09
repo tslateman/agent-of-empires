@@ -117,20 +117,24 @@ pub async fn check_for_update(current_version: &str, force: bool) -> Result<Upda
 }
 
 fn find_download_url(assets: &[GitHubAsset]) -> Result<String> {
-    let platform = crate::platform::Platform::detect();
     let arch = std::env::consts::ARCH;
 
-    let expected_name = match (platform, arch) {
-        (crate::platform::Platform::MacOS, "aarch64") => "agent-of-empires-darwin-arm64",
-        (crate::platform::Platform::MacOS, _) => "agent-of-empires-darwin-amd64",
-        (crate::platform::Platform::Linux, "aarch64")
-        | (crate::platform::Platform::Wsl1, "aarch64")
-        | (crate::platform::Platform::Wsl2, "aarch64") => "agent-of-empires-linux-arm64",
-        (crate::platform::Platform::Linux, _)
-        | (crate::platform::Platform::Wsl1, _)
-        | (crate::platform::Platform::Wsl2, _) => "agent-of-empires-linux-amd64",
-        _ => anyhow::bail!("Unsupported platform for auto-update"),
+    #[cfg(target_os = "macos")]
+    let expected_name = if arch == "aarch64" {
+        "agent-of-empires-darwin-arm64"
+    } else {
+        "agent-of-empires-darwin-amd64"
     };
+
+    #[cfg(target_os = "linux")]
+    let expected_name = if arch == "aarch64" {
+        "agent-of-empires-linux-arm64"
+    } else {
+        "agent-of-empires-linux-amd64"
+    };
+
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    anyhow::bail!("Unsupported platform for auto-update");
 
     for asset in assets {
         if asset.name.contains(expected_name) {

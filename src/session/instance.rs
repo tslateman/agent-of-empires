@@ -44,12 +44,6 @@ pub struct Instance {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub claude_detected_at: Option<DateTime<Utc>>,
 
-    // Gemini CLI integration
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub gemini_session_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub gemini_detected_at: Option<DateTime<Utc>>,
-
     // MCP tracking
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub loaded_mcp_names: Vec<String>,
@@ -78,8 +72,6 @@ impl Instance {
             last_accessed_at: None,
             claude_session_id: None,
             claude_detected_at: None,
-            gemini_session_id: None,
-            gemini_detected_at: None,
             loaded_mcp_names: Vec::new(),
             last_error_check: None,
             last_start_time: None,
@@ -126,7 +118,7 @@ impl Instance {
         std::thread::sleep(std::time::Duration::from_millis(100));
 
         // Regenerate MCP config if needed
-        if !self.skip_mcp_regenerate && (self.tool == "claude" || self.tool == "gemini") {
+        if !self.skip_mcp_regenerate && self.tool == "claude" {
             let path = Path::new(&self.project_path);
             if let Ok(mcps) = super::mcp::get_attached_mcps(&self.project_path) {
                 let _ = super::mcp::write_mcp_json(path, &mcps);
@@ -190,14 +182,6 @@ impl Instance {
             if let Ok(Some(id)) = super::claude::detect_session_id(&self.project_path) {
                 self.claude_session_id = Some(id);
                 self.claude_detected_at = Some(Utc::now());
-            }
-        }
-
-        // Detect Gemini session ID if applicable
-        if self.tool == "gemini" && self.gemini_session_id.is_none() {
-            if let Ok(Some(id)) = super::gemini::detect_session_id(&self.project_path) {
-                self.gemini_session_id = Some(id);
-                self.gemini_detected_at = Some(Utc::now());
             }
         }
     }

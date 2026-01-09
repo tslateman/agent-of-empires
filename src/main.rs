@@ -5,7 +5,7 @@ use clap::{Parser, Subcommand};
 
 mod cli;
 mod mcppool;
-mod platform;
+mod process;
 mod session;
 mod tmux;
 mod tui;

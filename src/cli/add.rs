@@ -31,6 +31,10 @@ pub struct AddArgs {
     /// MCPs to attach (can specify multiple times)
     #[arg(long = "mcp")]
     mcps: Vec<String>,
+
+    /// Launch the session immediately after creating
+    #[arg(short = 'l', long)]
+    launch: bool,
 }
 
 pub async fn run(profile: &str, args: AddArgs) -> Result<()> {
@@ -133,13 +137,25 @@ pub async fn run(profile: &str, args: AddArgs) -> Result<()> {
         println!("  Parent:  {}", parent);
     }
 
-    println!();
-    println!("Next steps:");
-    println!(
-        "  agent-of-empires session start {}   # Start the session",
-        final_title
-    );
-    println!("  agent-of-empires                         # Open TUI and press Enter to attach");
+    if args.launch {
+        let idx = instances
+            .iter()
+            .position(|i| i.id == instance.id)
+            .expect("just added instance");
+        instances[idx].start()?;
+        storage.save_with_groups(&instances, &group_tree)?;
+
+        let tmux_session = crate::tmux::Session::new(&instance.id, &instance.title)?;
+        tmux_session.attach()?;
+    } else {
+        println!();
+        println!("Next steps:");
+        println!(
+            "  agent-of-empires session start {}   # Start the session",
+            final_title
+        );
+        println!("  agent-of-empires                         # Open TUI and press Enter to attach");
+    }
 
     Ok(())
 }
@@ -183,10 +199,6 @@ fn detect_tool(cmd: &str) -> String {
         "claude".to_string()
     } else if cmd_lower.contains("opencode") || cmd_lower.contains("open-code") {
         "opencode".to_string()
-    } else if cmd_lower.contains("gemini") {
-        "gemini".to_string()
-    } else if cmd_lower.contains("codex") {
-        "codex".to_string()
     } else if cmd_lower.contains("cursor") {
         "cursor".to_string()
     } else {
