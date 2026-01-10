@@ -146,35 +146,8 @@ impl Session {
         self.capture_pane_with_size(lines, None, None)
     }
 
-    fn get_window_size(&self) -> Option<(u16, u16)> {
-        let output = Command::new("tmux")
-            .args([
-                "display",
-                "-p",
-                "-t",
-                &self.name,
-                "#{window_width} #{window_height}",
-            ])
-            .output()
-            .ok()?;
-
-        if !output.status.success() {
-            return None;
-        }
-
-        let size_str = String::from_utf8_lossy(&output.stdout);
-        let parts: Vec<&str> = size_str.split_whitespace().collect();
-        if parts.len() == 2 {
-            let width = parts[0].parse().ok()?;
-            let height = parts[1].parse().ok()?;
-            Some((width, height))
-        } else {
-            None
-        }
-    }
-
     fn resize_window(&self, width: u16, height: u16) {
-        let result = Command::new("tmux")
+        let _ = Command::new("tmux")
             .args([
                 "resize-window",
                 "-t",
@@ -185,35 +158,6 @@ impl Session {
                 &height.to_string(),
             ])
             .output();
-        // #region agent log
-        use std::io::Write;
-        let log_path = "/Users/nbrake/scm/agent-of-empires/.cursor/debug.log";
-        if let Ok(mut f) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(log_path)
-        {
-            let (success, stderr) = match &result {
-                Ok(o) => (
-                    o.status.success(),
-                    String::from_utf8_lossy(&o.stderr).to_string(),
-                ),
-                Err(e) => (false, e.to_string()),
-            };
-            let _ = writeln!(
-                f,
-                r#"{{"hypothesisId":"B","location":"session.rs:resize_window","message":"resize_window result","data":{{"width":{},"height":{},"success":{},"stderr":"{}"}},"timestamp":{}}}"#,
-                width,
-                height,
-                success,
-                stderr.replace("\"", "\\\"").replace("\n", " "),
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis()
-            );
-        }
-        // #endregion
     }
 
     pub fn capture_pane_with_size(
@@ -226,95 +170,9 @@ impl Session {
             return Ok(String::new());
         }
 
-        // #region agent log
-        use std::io::Write;
-        let log_path = "/Users/nbrake/scm/agent-of-empires/.cursor/debug.log";
-        if let Ok(mut f) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(log_path)
-        {
-            let _ = writeln!(
-                f,
-                r#"{{"hypothesisId":"A","location":"session.rs:capture_pane_with_size:entry","message":"capture_pane_with_size called","data":{{"session":"{}","lines":{},"width":{:?},"height":{:?}}},"timestamp":{}}}"#,
-                self.name,
-                lines,
-                width,
-                height,
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis()
-            );
-        }
-        // #endregion
-
-        // Save current window size before resizing
-        let original_size = if width.is_some() && height.is_some() {
-            self.get_window_size()
-        } else {
-            None
-        };
-
-        // #region agent log
-        if let Ok(mut f) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(log_path)
-        {
-            let _ = writeln!(
-                f,
-                r#"{{"hypothesisId":"C","location":"session.rs:capture_pane_with_size:original_size","message":"original window size captured","data":{{"original_size":{:?}}},"timestamp":{}}}"#,
-                original_size,
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis()
-            );
-        }
-        // #endregion
-
         // Resize the window to match the preview dimensions if provided
         if let (Some(w), Some(h)) = (width, height) {
-            // #region agent log
-            if let Ok(mut f) = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(log_path)
-            {
-                let _ = writeln!(
-                    f,
-                    r#"{{"hypothesisId":"B","location":"session.rs:capture_pane_with_size:pre_resize","message":"about to resize window","data":{{"target_width":{},"target_height":{}}},"timestamp":{}}}"#,
-                    w,
-                    h,
-                    std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap()
-                        .as_millis()
-                );
-            }
-            // #endregion
             self.resize_window(w, h);
-            // #region agent log
-            let post_resize_size = self.get_window_size();
-            if let Ok(mut f) = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(log_path)
-            {
-                let _ = writeln!(
-                    f,
-                    r#"{{"hypothesisId":"B","location":"session.rs:capture_pane_with_size:post_resize","message":"resize complete, checking new size","data":{{"post_resize_size":{:?},"target_was":({},{})}},"timestamp":{}}}"#,
-                    post_resize_size,
-                    w,
-                    h,
-                    std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap()
-                        .as_millis()
-                );
-            }
-            // #endregion
         }
 
         let output = Command::new("tmux")
@@ -327,49 +185,6 @@ impl Session {
                 &format!("-{}", lines),
             ])
             .output()?;
-
-        // #region agent log
-        if let Ok(mut f) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(log_path)
-        {
-            let captured_lines = String::from_utf8_lossy(&output.stdout).lines().count();
-            let _ = writeln!(
-                f,
-                r#"{{"hypothesisId":"D","location":"session.rs:capture_pane_with_size:captured","message":"pane captured","data":{{"captured_lines":{},"success":{}}},"timestamp":{}}}"#,
-                captured_lines,
-                output.status.success(),
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis()
-            );
-        }
-        // #endregion
-
-        // Restore original window size
-        if let Some((orig_w, orig_h)) = original_size {
-            // #region agent log
-            if let Ok(mut f) = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(log_path)
-            {
-                let _ = writeln!(
-                    f,
-                    r#"{{"hypothesisId":"A","location":"session.rs:capture_pane_with_size:restore","message":"restoring original size","data":{{"orig_w":{},"orig_h":{}}},"timestamp":{}}}"#,
-                    orig_w,
-                    orig_h,
-                    std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap()
-                        .as_millis()
-                );
-            }
-            // #endregion
-            self.resize_window(orig_w, orig_h);
-        }
 
         if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).to_string())
@@ -458,7 +273,7 @@ fn is_claude_code_content(content: &str) -> bool {
     false
 }
 
-fn detect_claude_status(content: &str) -> Status {
+pub fn detect_claude_status(content: &str) -> Status {
     let lines: Vec<&str> = content.lines().collect();
     let content_lower = content.to_lowercase();
     let non_empty_lines: Vec<&str> = lines
@@ -503,8 +318,15 @@ fn detect_claude_status(content: &str) -> Status {
     }
 
     // WAITING: Selection cursor with numbered options (e.g., "❯ 1.", "❯ 2.")
-    if content.contains("❯") && (content.contains("1.") || content.contains("2.")) {
-        return Status::Waiting;
+    // Must check for actual selection patterns, not just "❯" anywhere with numbers anywhere
+    for line in &lines {
+        let trimmed = line.trim();
+        if trimmed.starts_with("❯") && trimmed.len() > 2 {
+            let rest = &trimmed[3..].trim_start();
+            if rest.starts_with("1.") || rest.starts_with("2.") || rest.starts_with("3.") {
+                return Status::Waiting;
+            }
+        }
     }
 
     // WAITING: Check for ">" input prompt in non-empty lines
@@ -532,7 +354,7 @@ fn detect_claude_status(content: &str) -> Status {
     Status::Idle
 }
 
-fn detect_opencode_status(content: &str) -> Status {
+pub fn detect_opencode_status(content: &str) -> Status {
     let lines: Vec<&str> = content.lines().collect();
     let non_empty_lines: Vec<&str> = lines
         .iter()
@@ -576,7 +398,23 @@ fn detect_opencode_status(content: &str) -> Status {
     }
 
     // WAITING: Selection cursor with numbered options
-    if content.contains("❯") && (content.contains("1.") || content.contains("2.")) {
+    // Must check for actual selection patterns, not just "❯" anywhere with numbers anywhere
+    for line in &lines {
+        let trimmed = line.trim();
+        if trimmed.starts_with("❯") && trimmed.len() > 2 {
+            let after_cursor = trimmed.get(3..).unwrap_or("").trim_start();
+            if after_cursor.starts_with("1.")
+                || after_cursor.starts_with("2.")
+                || after_cursor.starts_with("3.")
+            {
+                return Status::Waiting;
+            }
+        }
+    }
+    // Legacy check - keep for backwards compatibility but only if "❯" is on a line with the number
+    if lines.iter().any(|line| {
+        line.contains("❯") && (line.contains(" 1.") || line.contains(" 2.") || line.contains(" 3."))
+    }) {
         return Status::Waiting;
     }
 
