@@ -8,7 +8,9 @@ use std::time::Instant;
 
 use super::app::Action;
 use super::components::{HelpOverlay, Preview};
-use super::dialogs::{ConfirmDialog, NewSessionDialog, RenameDialog};
+use super::dialogs::{
+    ConfirmDialog, DeleteOptions, DeleteOptionsDialog, NewSessionDialog, RenameDialog,
+};
 use super::status_poller::StatusPoller;
 use super::styles::Theme;
 use crate::session::{
@@ -78,6 +80,7 @@ pub struct HomeView {
     show_help: bool,
     new_dialog: Option<NewSessionDialog>,
     confirm_dialog: Option<ConfirmDialog>,
+    delete_options_dialog: Option<DeleteOptionsDialog>,
     rename_dialog: Option<RenameDialog>,
 
     // Search
@@ -124,6 +127,7 @@ impl HomeView {
             show_help: false,
             new_dialog: None,
             confirm_dialog: None,
+            delete_options_dialog: None,
             rename_dialog: None,
             search_active: false,
             search_query: String::new(),
@@ -290,13 +294,31 @@ impl HomeView {
                     let action = dialog.action().to_string();
                     self.confirm_dialog = None;
                     if action == "delete" {
-                        if let Err(e) = self.delete_selected() {
+                        // Simple delete without worktree/container options
+                        let options = DeleteOptions::default();
+                        if let Err(e) = self.delete_selected(&options) {
                             tracing::error!("Failed to delete session: {}", e);
                         }
                     } else if action == "delete_group" {
                         if let Err(e) = self.delete_selected_group() {
                             tracing::error!("Failed to delete group: {}", e);
                         }
+                    }
+                }
+            }
+            return None;
+        }
+
+        if let Some(dialog) = &mut self.delete_options_dialog {
+            match dialog.handle_key(key) {
+                super::dialogs::DialogResult::Continue => {}
+                super::dialogs::DialogResult::Cancel => {
+                    self.delete_options_dialog = None;
+                }
+                super::dialogs::DialogResult::Submit(options) => {
+                    self.delete_options_dialog = None;
+                    if let Err(e) = self.delete_selected(&options) {
+                        tracing::error!("Failed to delete session: {}", e);
                     }
                 }
             }
@@ -368,64 +390,43 @@ impl HomeView {
             }
             KeyCode::Char('d') => {
                 if let Some(session_id) = &self.selected_session {
-                    let (title, message) = if let Some(inst) = self.instance_map.get(session_id) {
-                        let has_worktree = inst
+                    if let Some(inst) = self.instance_map.get(session_id) {
+                        // Check for worktree that would be managed
+                        let worktree_info = inst
                             .worktree_info
                             .as_ref()
-                            .is_some_and(|wt| wt.managed_by_aoe && wt.cleanup_on_delete);
-                        let has_sandbox = inst.sandbox_info.as_ref().is_some_and(|s| s.enabled);
+                            .filter(|wt| wt.managed_by_aoe)
+                            .map(|wt| (wt.branch.clone(), inst.project_path.clone()));
 
-                        match (has_worktree, has_sandbox) {
-                            (true, true) => {
-                                let wt_info = inst.worktree_info.as_ref().unwrap();
-                                let sandbox = inst.sandbox_info.as_ref().unwrap();
-                                (
-                                    "Delete Session, Worktree & Container",
-                                    format!(
-                                        "WARNING: This will permanently delete:\n\n\
-                                        Worktree: {}\n\
-                                        Branch: {}\n\n\
-                                        Docker container: {}",
-                                        inst.project_path, wt_info.branch, sandbox.container_name
-                                    ),
-                                )
-                            }
-                            (true, false) => {
-                                let wt_info = inst.worktree_info.as_ref().unwrap();
-                                (
-                                    "Delete Session & Worktree",
-                                    format!(
-                                        "WARNING: This will permanently delete the worktree directory and all its contents!\n\n\
-                                        Path: {}\n\
-                                        Branch: {}",
-                                        inst.project_path, wt_info.branch
-                                    ),
-                                )
-                            }
-                            (false, true) => {
-                                let sandbox = inst.sandbox_info.as_ref().unwrap();
-                                (
-                                    "Delete Session & Container",
-                                    format!(
-                                        "WARNING: This will remove the Docker container:\n\n\
-                                        Container: {}",
-                                        sandbox.container_name
-                                    ),
-                                )
-                            }
-                            (false, false) => (
+                        // Check for enabled sandbox
+                        let container_name = inst
+                            .sandbox_info
+                            .as_ref()
+                            .filter(|s| s.enabled)
+                            .map(|s| s.container_name.clone());
+
+                        if worktree_info.is_some() || container_name.is_some() {
+                            // Show options dialog when there are resources to manage
+                            self.delete_options_dialog = Some(DeleteOptionsDialog::new(
+                                inst.title.clone(),
+                                worktree_info,
+                                container_name,
+                            ));
+                        } else {
+                            // Simple confirmation for sessions without managed resources
+                            self.confirm_dialog = Some(ConfirmDialog::new(
                                 "Delete Session",
-                                "Are you sure you want to delete this session?".to_string(),
-                            ),
+                                "Are you sure you want to delete this session?",
+                                "delete",
+                            ));
                         }
                     } else {
-                        (
+                        self.confirm_dialog = Some(ConfirmDialog::new(
                             "Delete Session",
-                            "Are you sure you want to delete this session?".to_string(),
-                        )
-                    };
-
-                    self.confirm_dialog = Some(ConfirmDialog::new(title, &message, "delete"));
+                            "Are you sure you want to delete this session?",
+                            "delete",
+                        ));
+                    }
                 } else if let Some(group_path) = &self.selected_group {
                     let session_count = self
                         .instances
@@ -733,37 +734,43 @@ impl HomeView {
         Ok(session_id)
     }
 
-    fn delete_selected(&mut self) -> anyhow::Result<()> {
+    fn delete_selected(&mut self, options: &DeleteOptions) -> anyhow::Result<()> {
         if let Some(id) = &self.selected_session {
             let id = id.clone();
 
-            // Handle worktree cleanup before removing from instances
+            // Handle cleanup before removing from instances
             if let Some(inst) = self.instance_map.get(&id) {
-                if let Some(wt_info) = &inst.worktree_info {
-                    if wt_info.managed_by_aoe && wt_info.cleanup_on_delete {
-                        use crate::git::GitWorktree;
-                        use std::path::PathBuf;
+                // Handle worktree cleanup if user opted to delete it
+                if options.delete_worktree {
+                    if let Some(wt_info) = &inst.worktree_info {
+                        if wt_info.managed_by_aoe {
+                            use crate::git::GitWorktree;
+                            use std::path::PathBuf;
 
-                        let worktree_path = PathBuf::from(&inst.project_path);
-                        let main_repo = PathBuf::from(&wt_info.main_repo_path);
+                            let worktree_path = PathBuf::from(&inst.project_path);
+                            let main_repo = PathBuf::from(&wt_info.main_repo_path);
 
-                        if let Ok(git_wt) = GitWorktree::new(main_repo) {
-                            let _ = git_wt.remove_worktree(&worktree_path);
+                            if let Ok(git_wt) = GitWorktree::new(main_repo) {
+                                let _ = git_wt.remove_worktree(&worktree_path);
+                            }
                         }
                     }
                 }
 
-                // Handle container cleanup
-                if let Some(sandbox) = &inst.sandbox_info {
-                    if sandbox.enabled {
-                        let container = crate::docker::DockerContainer::from_session_id(&inst.id);
-                        if container.exists().unwrap_or(false) {
-                            let _ = container.remove(true);
+                // Handle container cleanup if user opted to delete it
+                if options.delete_container {
+                    if let Some(sandbox) = &inst.sandbox_info {
+                        if sandbox.enabled {
+                            let container =
+                                crate::docker::DockerContainer::from_session_id(&inst.id);
+                            if container.exists().unwrap_or(false) {
+                                let _ = container.remove(true);
+                            }
                         }
                     }
                 }
 
-                // Kill tmux session
+                // Kill tmux session (always)
                 let _ = inst.kill();
             }
 
@@ -874,6 +881,10 @@ impl HomeView {
         }
 
         if let Some(dialog) = &self.confirm_dialog {
+            dialog.render(frame, area, theme);
+        }
+
+        if let Some(dialog) = &self.delete_options_dialog {
             dialog.render(frame, area, theme);
         }
 

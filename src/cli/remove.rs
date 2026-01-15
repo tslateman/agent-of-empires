@@ -11,9 +11,9 @@ pub struct RemoveArgs {
     /// Session ID or title to remove
     identifier: String,
 
-    /// Keep worktree directory (don't delete it)
-    #[arg(short = 'k', long = "keep-worktree")]
-    keep_worktree: bool,
+    /// Delete worktree directory (default: keep worktree)
+    #[arg(long = "delete-worktree")]
+    delete_worktree: bool,
 
     /// Keep Docker container (don't remove it)
     #[arg(long = "keep-container")]
@@ -21,10 +21,12 @@ pub struct RemoveArgs {
 }
 
 fn needs_cleanup_confirmation(inst: &Instance, args: &RemoveArgs) -> (bool, bool) {
+    // Worktree: only delete if user explicitly requests with --delete-worktree
     let will_cleanup_worktree = inst
         .worktree_info
         .as_ref()
-        .is_some_and(|wt| wt.managed_by_aoe && wt.cleanup_on_delete && !args.keep_worktree);
+        .is_some_and(|wt| wt.managed_by_aoe && args.delete_worktree);
+    // Container: delete by default unless user specifies --keep-container
     let will_cleanup_container = inst
         .sandbox_info
         .as_ref()
@@ -107,6 +109,14 @@ pub async fn run(profile: &str, args: RemoveArgs) -> Result<()> {
                     }
                 } else {
                     println!("Worktree preserved at: {}", inst.project_path);
+                }
+            } else if let Some(wt_info) = &inst.worktree_info {
+                // Worktree exists but not scheduled for deletion (user didn't use --delete-worktree)
+                if wt_info.managed_by_aoe {
+                    println!(
+                        "Worktree preserved at: {} (use --delete-worktree to remove)",
+                        inst.project_path
+                    );
                 }
             }
 
