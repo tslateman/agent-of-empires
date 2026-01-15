@@ -92,9 +92,8 @@ impl DeletionPoller {
             }
         }
 
-        if let Err(e) = request.instance.kill() {
-            errors.push(format!("Tmux: {}", e));
-        }
+        // Tmux kill errors are non-fatal - if the session is already gone, that's fine
+        let _ = request.instance.kill();
 
         DeletionResult {
             session_id: request.session_id.clone(),
