@@ -8,6 +8,7 @@ use std::time::Instant;
 
 use super::app::Action;
 use super::components::{HelpOverlay, Preview};
+use super::deletion_poller::{DeletionPoller, DeletionRequest};
 use super::dialogs::{
     ConfirmDialog, DeleteOptions, DeleteOptionsDialog, NewSessionDialog, RenameDialog,
 };
@@ -60,6 +61,7 @@ const ICON_WAITING: &str = "◐";
 const ICON_IDLE: &str = "○";
 const ICON_ERROR: &str = "✕";
 const ICON_STARTING: &str = "◌";
+const ICON_DELETING: &str = "✗";
 const ICON_COLLAPSED: &str = "▶";
 const ICON_EXPANDED: &str = "▼";
 
@@ -94,6 +96,9 @@ pub struct HomeView {
     // Performance: background status polling
     status_poller: StatusPoller,
     pending_status_refresh: bool,
+
+    // Performance: background deletion
+    deletion_poller: DeletionPoller,
 
     // Performance: preview caching
     preview_cache: PreviewCache,
@@ -135,6 +140,7 @@ impl HomeView {
             available_tools,
             status_poller: StatusPoller::new(),
             pending_status_refresh: false,
+            deletion_poller: DeletionPoller::new(),
             preview_cache: PreviewCache::default(),
         };
 
@@ -190,21 +196,60 @@ impl HomeView {
         if let Some(updates) = self.status_poller.try_recv_updates() {
             for update in updates {
                 if let Some(inst) = self.instances.iter_mut().find(|i| i.id == update.id) {
-                    inst.status = update.status;
-                    inst.last_error = update.last_error.clone();
+                    if inst.status != Status::Deleting {
+                        inst.status = update.status;
+                        inst.last_error = update.last_error.clone();
+                    }
                     if update.claude_session_id.is_some() {
                         inst.claude_session_id = update.claude_session_id.clone();
                     }
                 }
                 if let Some(inst) = self.instance_map.get_mut(&update.id) {
-                    inst.status = update.status;
-                    inst.last_error = update.last_error;
+                    if inst.status != Status::Deleting {
+                        inst.status = update.status;
+                        inst.last_error = update.last_error;
+                    }
                     if update.claude_session_id.is_some() {
                         inst.claude_session_id = update.claude_session_id;
                     }
                 }
             }
             self.pending_status_refresh = false;
+            return true;
+        }
+        false
+    }
+
+    /// Apply any pending deletion results from the background poller.
+    /// Returns true if a result was processed.
+    pub fn apply_deletion_results(&mut self) -> bool {
+        if let Some(result) = self.deletion_poller.try_recv_result() {
+            if result.success {
+                self.instances.retain(|i| i.id != result.session_id);
+                self.instance_map.remove(&result.session_id);
+                self.group_tree = GroupTree::new_with_groups(&self.instances, &self.groups);
+
+                if let Err(e) = self
+                    .storage
+                    .save_with_groups(&self.instances, &self.group_tree)
+                {
+                    tracing::error!("Failed to save after deletion: {}", e);
+                }
+                let _ = self.reload();
+            } else {
+                if let Some(inst) = self
+                    .instances
+                    .iter_mut()
+                    .find(|i| i.id == result.session_id)
+                {
+                    inst.status = Status::Error;
+                    inst.last_error = result.error.clone();
+                }
+                if let Some(inst) = self.instance_map.get_mut(&result.session_id) {
+                    inst.status = Status::Error;
+                    inst.last_error = result.error;
+                }
+            }
             return true;
         }
         false
@@ -391,7 +436,9 @@ impl HomeView {
             KeyCode::Char('d') => {
                 if let Some(session_id) = &self.selected_session {
                     if let Some(inst) = self.instance_map.get(session_id) {
-                        // Check for worktree that would be managed
+                        if inst.status == Status::Deleting {
+                            return None;
+                        }
                         let worktree_info = inst
                             .worktree_info
                             .as_ref()
@@ -451,6 +498,9 @@ impl HomeView {
             KeyCode::Char('r') if !key.modifiers.contains(KeyModifiers::SHIFT) => {
                 if let Some(id) = &self.selected_session {
                     if let Some(inst) = self.instance_map.get(id) {
+                        if inst.status == Status::Deleting {
+                            return None;
+                        }
                         self.rename_dialog = Some(RenameDialog::new(&inst.title));
                     }
                 }
@@ -479,6 +529,11 @@ impl HomeView {
             }
             KeyCode::Enter => {
                 if let Some(id) = &self.selected_session {
+                    if let Some(inst) = self.instance_map.get(id) {
+                        if inst.status == Status::Deleting {
+                            return None;
+                        }
+                    }
                     return Some(Action::AttachSession(id.clone()));
                 } else if let Some(Item::Group { path, .. }) = self.flat_items.get(self.cursor) {
                     self.group_tree.toggle_collapsed(path);
@@ -738,49 +793,21 @@ impl HomeView {
         if let Some(id) = &self.selected_session {
             let id = id.clone();
 
-            // Handle cleanup before removing from instances
-            if let Some(inst) = self.instance_map.get(&id) {
-                // Handle worktree cleanup if user opted to delete it
-                if options.delete_worktree {
-                    if let Some(wt_info) = &inst.worktree_info {
-                        if wt_info.managed_by_aoe {
-                            use crate::git::GitWorktree;
-                            use std::path::PathBuf;
-
-                            let worktree_path = PathBuf::from(&inst.project_path);
-                            let main_repo = PathBuf::from(&wt_info.main_repo_path);
-
-                            if let Ok(git_wt) = GitWorktree::new(main_repo) {
-                                let _ = git_wt.remove_worktree(&worktree_path);
-                            }
-                        }
-                    }
-                }
-
-                // Handle container cleanup if user opted to delete it
-                if options.delete_container {
-                    if let Some(sandbox) = &inst.sandbox_info {
-                        if sandbox.enabled {
-                            let container =
-                                crate::docker::DockerContainer::from_session_id(&inst.id);
-                            if container.exists().unwrap_or(false) {
-                                let _ = container.remove(true);
-                            }
-                        }
-                    }
-                }
-
-                // Kill tmux session (always)
-                let _ = inst.kill();
+            if let Some(inst) = self.instance_map.get_mut(&id) {
+                inst.status = Status::Deleting;
+            }
+            if let Some(inst) = self.instances.iter_mut().find(|i| i.id == id) {
+                inst.status = Status::Deleting;
             }
 
-            self.instances.retain(|i| i.id != id);
-
-            self.group_tree = GroupTree::new_with_groups(&self.instances, &self.groups);
-            self.storage
-                .save_with_groups(&self.instances, &self.group_tree)?;
-
-            self.reload()?;
+            if let Some(inst) = self.instance_map.get(&id) {
+                let request = DeletionRequest {
+                    session_id: id.clone(),
+                    instance: inst.clone(),
+                    options: options.clone(),
+                };
+                self.deletion_poller.request_deletion(request);
+            }
         }
         Ok(())
     }
@@ -981,6 +1008,7 @@ impl HomeView {
                         Status::Idle => ICON_IDLE,
                         Status::Error => ICON_ERROR,
                         Status::Starting => ICON_STARTING,
+                        Status::Deleting => ICON_DELETING,
                     };
                     let color = match inst.status {
                         Status::Running => theme.running,
@@ -988,6 +1016,7 @@ impl HomeView {
                         Status::Idle => theme.idle,
                         Status::Error => theme.error,
                         Status::Starting => theme.dimmed,
+                        Status::Deleting => theme.waiting,
                     };
                     let style = Style::default().fg(color);
                     (icon, Cow::Borrowed(&inst.title), style)
