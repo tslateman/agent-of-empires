@@ -270,8 +270,12 @@ impl App {
         let tmux_session = instance.tmux_session()?;
 
         if !tmux_session.exists() {
+            // Get terminal size to pass to tmux session creation
+            // This ensures the session starts at the correct size instead of 80x24 default
+            let size = crate::terminal::get_size();
+
             let mut inst = instance.clone();
-            if let Err(e) = inst.start() {
+            if let Err(e) = inst.start_with_size(size) {
                 self.home
                     .set_instance_error(session_id, Some(e.to_string()));
                 return Ok(());
@@ -337,8 +341,15 @@ impl App {
         let terminal_session = instance.terminal_tmux_session()?;
 
         if !terminal_session.exists() {
+            // Get terminal size to pass to tmux session creation
+            // This ensures the session starts at the correct size instead of 80x24 default
+            let size = crate::terminal::get_size();
+
             // Start the terminal (creates tmux session and updates terminal_info)
-            if let Err(e) = self.home.start_terminal_for_instance(session_id) {
+            if let Err(e) = self
+                .home
+                .start_terminal_for_instance_with_size(session_id, size)
+            {
                 self.home
                     .set_instance_error(session_id, Some(e.to_string()));
                 return Ok(());
