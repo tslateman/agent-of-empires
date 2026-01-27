@@ -15,6 +15,37 @@ fn default_true() -> bool {
     true
 }
 
+/// Terminal environment variables that are always passed through for proper UI/theming
+const DEFAULT_TERMINAL_ENV_VARS: &[&str] = &["TERM", "COLORTERM", "FORCE_COLOR", "NO_COLOR"];
+
+/// Build docker exec environment flags from config
+fn build_docker_env_args() -> String {
+    let config = super::config::Config::load().unwrap_or_default();
+
+    // Start with default terminal variables (always included for proper UI)
+    let mut env_keys: Vec<String> = DEFAULT_TERMINAL_ENV_VARS
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+
+    // Add user-configured variables
+    for key in &config.sandbox.environment {
+        if !env_keys.contains(key) {
+            env_keys.push(key.clone());
+        }
+    }
+
+    env_keys
+        .iter()
+        .filter_map(|key| {
+            std::env::var(key)
+                .ok()
+                .map(|val| format!("-e {}={}", key, val))
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TerminalInfo {
     #[serde(default)]
@@ -236,16 +267,22 @@ impl Instance {
             let tool_cmd = if self.is_yolo_mode() {
                 match self.tool.as_str() {
                     "claude" => "claude --dangerously-skip-permissions".to_string(),
-                    "vibe" => "vibe --auto-approve".to_string(),
+                    "vibe" => "vibe --agent auto-approve".to_string(),
                     "codex" => "codex --dangerously-bypass-approvals-and-sandbox".to_string(),
                     _ => self.get_tool_command().to_string(),
                 }
             } else {
                 self.get_tool_command().to_string()
             };
+            let env_args = build_docker_env_args();
+            let env_part = if env_args.is_empty() {
+                String::new()
+            } else {
+                format!("{} ", env_args)
+            };
             Some(wrap_command_ignore_suspend(&format!(
-                "docker exec -it {} {}",
-                sandbox.container_name, tool_cmd
+                "docker exec -it {}{} {}",
+                env_part, sandbox.container_name, tool_cmd
             )))
         } else if self.command.is_empty() {
             match self.tool.as_str() {
@@ -432,8 +469,20 @@ impl Instance {
             .map(|c| c.sandbox)
             .unwrap_or_default();
 
-        let mut environment: Vec<(String, String)> = sandbox_config
-            .environment
+        // Start with default terminal variables (always included for proper UI)
+        let mut env_keys: Vec<String> = DEFAULT_TERMINAL_ENV_VARS
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        // Add user-configured variables
+        for key in &sandbox_config.environment {
+            if !env_keys.contains(key) {
+                env_keys.push(key.clone());
+            }
+        }
+
+        let mut environment: Vec<(String, String)> = env_keys
             .iter()
             .filter_map(|key| std::env::var(key).ok().map(|val| (key.clone(), val)))
             .collect();

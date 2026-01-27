@@ -108,14 +108,17 @@ Example: `aoe-sandbox-a1b2c3d4`
 
 ## Environment Variables
 
-Pass API keys through containers by adding them to config:
+These terminal-related variables are **always** passed through for proper UI/theming:
+- `TERM`, `COLORTERM`, `FORCE_COLOR`, `NO_COLOR`
+
+Pass additional variables (like API keys) through containers by adding them to config:
 
 ```toml
 [sandbox]
 environment = ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"]
 ```
 
-These variables are read from your host environment and passed to containers.
+These variables are read from your host environment and passed to containers (in addition to the terminal defaults above).
 
 ## Available Images
 

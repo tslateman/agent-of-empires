@@ -160,7 +160,7 @@ pub struct SandboxConfig {
     #[serde(default)]
     pub extra_volumes: Vec<String>,
 
-    #[serde(default)]
+    #[serde(default = "default_sandbox_environment")]
     pub environment: Vec<String>,
 
     #[serde(default = "default_true")]
@@ -180,7 +180,7 @@ impl Default for SandboxConfig {
             yolo_mode_default: false,
             default_image: default_sandbox_image(),
             extra_volumes: Vec::new(),
-            environment: Vec::new(),
+            environment: default_sandbox_environment(),
             auto_cleanup: true,
             cpu_limit: None,
             memory_limit: None,
@@ -190,6 +190,15 @@ impl Default for SandboxConfig {
 
 fn default_sandbox_image() -> String {
     crate::docker::default_sandbox_image().to_string()
+}
+
+fn default_sandbox_environment() -> Vec<String> {
+    vec![
+        "TERM".to_string(),
+        "COLORTERM".to_string(),
+        "FORCE_COLOR".to_string(),
+        "NO_COLOR".to_string(),
+    ]
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -441,7 +450,8 @@ mod tests {
         assert!(!sb.enabled_by_default);
         assert!(sb.auto_cleanup);
         assert!(sb.extra_volumes.is_empty());
-        assert!(sb.environment.is_empty());
+        assert!(sb.environment.contains(&"TERM".to_string()));
+        assert!(sb.environment.contains(&"COLORTERM".to_string()));
         assert!(sb.cpu_limit.is_none());
         assert!(sb.memory_limit.is_none());
     }

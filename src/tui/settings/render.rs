@@ -207,12 +207,12 @@ impl SettingsView {
             FieldValue::List(items) => {
                 // If this field's list is expanded, show all items
                 if self.list_edit_state.is_some() && index == self.selected_field {
-                    3 + items.len() as u16 + 1 // label + items + add prompt
+                    4 + items.len() as u16 + 1 // label + description + items + add prompt
                 } else {
-                    2 // Just label and summary
+                    3 // Label + description + summary
                 }
             }
-            _ => 2, // Label + value
+            _ => 3, // Label + description + value
         }
     }
 
@@ -247,25 +247,43 @@ impl SettingsView {
 
         frame.render_widget(Paragraph::new(label), area);
 
+        // Render description below label
+        let description_area = Rect {
+            x: area.x,
+            y: area.y + 1,
+            width: area.width,
+            height: 1,
+        };
+        frame.render_widget(
+            Paragraph::new(field.description).style(Style::default().fg(theme.dimmed)),
+            description_area,
+        );
+
+        // Offset area for value rendering (field renderers add +1, so this puts values at y+2)
+        let value_area = Rect {
+            y: area.y + 1,
+            ..area
+        };
+
         match &field.value {
             FieldValue::Bool(value) => {
-                self.render_bool_field(frame, area, *value, is_selected, theme);
+                self.render_bool_field(frame, value_area, *value, is_selected, theme);
             }
             FieldValue::Text(value) => {
-                self.render_text_field(frame, area, value, index, is_selected, theme);
+                self.render_text_field(frame, value_area, value, index, is_selected, theme);
             }
             FieldValue::OptionalText(value) => {
                 let display = value.as_deref().unwrap_or("");
-                self.render_text_field(frame, area, display, index, is_selected, theme);
+                self.render_text_field(frame, value_area, display, index, is_selected, theme);
             }
             FieldValue::Number(value) => {
-                self.render_number_field(frame, area, *value, index, is_selected, theme);
+                self.render_number_field(frame, value_area, *value, index, is_selected, theme);
             }
             FieldValue::Select { selected, options } => {
-                self.render_select_field(frame, area, *selected, options, is_selected, theme);
+                self.render_select_field(frame, value_area, *selected, options, is_selected, theme);
             }
             FieldValue::List(items) => {
-                self.render_list_field(frame, area, items, index, is_selected, theme);
+                self.render_list_field(frame, value_area, items, index, is_selected, theme);
             }
         }
     }
@@ -469,7 +487,7 @@ impl SettingsView {
         let is_expanded = self.list_edit_state.is_some() && index == self.selected_field;
 
         if !is_expanded {
-            // Collapsed view - just show count
+            // Collapsed view - show count
             let value_area = Rect {
                 x: area.x,
                 y: area.y + 1,
@@ -484,9 +502,9 @@ impl SettingsView {
             };
 
             let text = if items.is_empty() {
-                "(empty list)".to_string()
+                "(empty)".to_string()
             } else {
-                format!("[{} items] Press Enter to expand", items.len())
+                format!("[{} items]", items.len())
             };
 
             frame.render_widget(Paragraph::new(text).style(style), value_area);

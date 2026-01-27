@@ -320,7 +320,7 @@ fn build_sandbox_fields(
         SettingField {
             key: FieldKey::Environment,
             label: "Environment Variables",
-            description: "Environment variables to pass to container",
+            description: "Var names to pass from host (e.g. ANTHROPIC_API_KEY)",
             value: FieldValue::List(environment),
             category: SettingsCategory::Sandbox,
             has_override: o4,
