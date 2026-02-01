@@ -380,14 +380,54 @@ impl Instance {
     }
 
     pub fn start_with_size(&mut self, size: Option<(u16, u16)>) -> Result<()> {
+        self.start_with_size_opts(size, false)
+    }
+
+    /// Start the session, optionally skipping on_launch hooks (e.g. when they
+    /// already ran in the background creation poller).
+    pub fn start_with_size_opts(
+        &mut self,
+        size: Option<(u16, u16)>,
+        skip_on_launch: bool,
+    ) -> Result<()> {
         let session = self.tmux_session()?;
 
         if session.exists() {
             return Ok(());
         }
 
+        // Execute on_launch hooks (trust already verified during creation).
+        // Use check_hook_trust which normalizes the path, so symlinked
+        // project_paths resolve correctly against the trust store.
+        let on_launch_hooks = if skip_on_launch {
+            None
+        } else {
+            match super::repo_config::check_hook_trust(std::path::Path::new(&self.project_path)) {
+                Ok(super::repo_config::HookTrustStatus::Trusted(hooks))
+                    if !hooks.on_launch.is_empty() =>
+                {
+                    Some(hooks.on_launch.clone())
+                }
+                _ => None,
+            }
+        };
+
         let cmd = if self.is_sandboxed() {
             self.ensure_container_running()?;
+
+            // Run on_launch hooks inside the container
+            if let Some(ref hook_cmds) = on_launch_hooks {
+                if let Some(ref sandbox) = self.sandbox_info {
+                    let workdir = self.container_workdir();
+                    if let Err(e) = super::repo_config::execute_hooks_in_container(
+                        hook_cmds,
+                        &sandbox.container_name,
+                        &workdir,
+                    ) {
+                        tracing::warn!("on_launch hook failed in container: {}", e);
+                    }
+                }
+            }
             let sandbox = self.sandbox_info.as_ref().unwrap();
             let tool_cmd = if self.is_yolo_mode() {
                 match self.tool.as_str() {
@@ -410,16 +450,28 @@ impl Instance {
                 "docker exec -it {}{} {}",
                 env_part, sandbox.container_name, tool_cmd
             )))
-        } else if self.command.is_empty() {
-            match self.tool.as_str() {
-                "claude" => Some(wrap_command_ignore_suspend("claude")),
-                "vibe" => Some(wrap_command_ignore_suspend("vibe")),
-                "codex" => Some(wrap_command_ignore_suspend("codex")),
-                "gemini" => Some(wrap_command_ignore_suspend("gemini")),
-                _ => None,
-            }
         } else {
-            Some(wrap_command_ignore_suspend(&self.command))
+            // Run on_launch hooks on host for non-sandboxed sessions
+            if let Some(ref hook_cmds) = on_launch_hooks {
+                if let Err(e) = super::repo_config::execute_hooks(
+                    hook_cmds,
+                    std::path::Path::new(&self.project_path),
+                ) {
+                    tracing::warn!("on_launch hook failed: {}", e);
+                }
+            }
+
+            if self.command.is_empty() {
+                match self.tool.as_str() {
+                    "claude" => Some(wrap_command_ignore_suspend("claude")),
+                    "vibe" => Some(wrap_command_ignore_suspend("vibe")),
+                    "codex" => Some(wrap_command_ignore_suspend("codex")),
+                    "gemini" => Some(wrap_command_ignore_suspend("gemini")),
+                    _ => None,
+                }
+            } else {
+                Some(wrap_command_ignore_suspend(&self.command))
+            }
         };
 
         session.create_with_size(&self.project_path, cmd.as_deref(), size)?;
@@ -573,6 +625,13 @@ impl Instance {
             workspace_path.clone(),
             workspace_path,
         ))
+    }
+
+    /// Get the container working directory for this instance.
+    pub fn container_workdir(&self) -> String {
+        self.compute_volume_paths(std::path::Path::new(&self.project_path))
+            .map(|(_, _, wd)| wd)
+            .unwrap_or_else(|_| "/workspace".to_string())
     }
 
     fn build_container_config(&self) -> Result<ContainerConfig> {
