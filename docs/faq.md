@@ -57,3 +57,59 @@ aoe
 ```
 
 Use `Ctrl+b L` to toggle back to `aoe` after attaching to an agent session.
+
+## How do I get back to the TUI after attaching to a session?
+
+Press `Ctrl+b d` to detach from the tmux session and return to the TUI. This is the standard tmux detach shortcut.
+
+## What are profiles for?
+
+Profiles let you maintain separate workspaces for different projects or clients. Each profile has its own set of sessions, so you can switch contexts without cluttering a single view.
+
+## Do I need Docker?
+
+No. Docker is optional and only required for sandboxed sessions. Without Docker, AoE runs agents directly on your system.
+
+## What are git worktrees and why use them?
+
+Git worktrees let you have multiple working directories from the same repo, each on a different branch. AoE automates this: create a session with `-w feat/my-feature -b` and AoE creates the branch, worktree, and session together. Delete the session and AoE offers to clean up the worktree.
+
+This lets you run parallel agents on different features without them stepping on each other's files.
+
+## How do I switch between the agent and a regular terminal?
+
+Press `t` to toggle between Agent View and Terminal View. Each session has a paired shell where you can run builds, tests, or git commands without interrupting the agent.
+
+## Can I use the CLI instead of the TUI?
+
+Yes. Everything in the TUI is available via CLI:
+
+```bash
+aoe add /path/to/project    # Create a session
+aoe list                    # List sessions
+aoe attach <session>        # Attach to a session
+aoe delete <session>        # Delete a session
+```
+
+See `aoe --help` or the [CLI Reference](cli/reference.md) for all commands.
+
+## Claude Code is flickering
+
+This is a known Claude Code issue, not an AoE problem. See: https://github.com/anthropics/claude-code/issues/1913
+
+## Where does AoE store its data?
+
+- **Linux:** `$XDG_CONFIG_HOME/agent-of-empires/` (defaults to `~/.config/agent-of-empires/`)
+- **macOS/Windows:** `~/.agent-of-empires/`
+
+## How do I enable debug logging?
+
+```bash
+AGENT_OF_EMPIRES_DEBUG=1 aoe
+```
+
+Or with the Rust log level:
+
+```bash
+RUST_LOG=agent_of_empires=debug aoe
+```
