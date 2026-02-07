@@ -6,6 +6,7 @@
 
 - [Installation](installation.md)
 - [Quick Start](quick-start.md)
+- [FAQ](faq.md)
 
 # Guides
 
