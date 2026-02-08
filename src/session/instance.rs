@@ -98,7 +98,7 @@ fn collect_env_values(
 /// Build docker exec environment flags from config and optional per-session extra keys.
 /// Used for `docker exec` commands (shell string interpolation, hence shell-escaping).
 /// Container creation uses `ContainerConfig.environment` (separate args, no escaping needed).
-fn build_docker_env_args(sandbox: &SandboxInfo) -> String {
+fn build_docker_env_args(sandbox: &SandboxInfo, project_path: &str) -> String {
     let config = super::config::Config::load().unwrap_or_default();
 
     let env_keys = collect_env_keys(&config.sandbox, sandbox);
@@ -116,7 +116,44 @@ fn build_docker_env_args(sandbox: &SandboxInfo) -> String {
         args.push(format!("-e {}={}", key, shell_escape(&resolved)));
     }
 
+    // Add context directory env var if enabled
+    if let Some(context_dir) = get_context_dir_for_env(project_path) {
+        args.push(format!(
+            "-e {}={}",
+            crate::context::CONTEXT_DIR_ENV_VAR,
+            shell_escape(&context_dir)
+        ));
+    }
+
     args.join(" ")
+}
+
+/// Get the context directory path if context is enabled and inject_env is true.
+/// Handles both regular repos and worktrees by resolving to the main repo for config.
+fn get_context_dir_for_env(project_path: &str) -> Option<String> {
+    use crate::git::GitWorktree;
+
+    let path = std::path::Path::new(project_path);
+
+    // For worktrees, load config from main repo
+    let config_path = if GitWorktree::is_git_repo(path) {
+        GitWorktree::find_main_repo(path).ok()?
+    } else {
+        path.to_path_buf()
+    };
+
+    let repo_config = super::repo_config::load_repo_config(&config_path).ok()??;
+    let context_config = repo_config.context?;
+
+    if !context_config.enabled || !context_config.inject_env {
+        return None;
+    }
+
+    let context_dir = crate::context::find_context_dir(path, &context_config.path)
+        .ok()
+        .flatten()?;
+
+    Some(context_dir.to_string_lossy().to_string())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -340,7 +377,7 @@ impl Instance {
         self.ensure_container_running()?;
         let sandbox = self.sandbox_info.as_ref().unwrap();
 
-        let env_args = build_docker_env_args(sandbox);
+        let env_args = build_docker_env_args(sandbox, &self.project_path);
         let env_part = if env_args.is_empty() {
             String::new()
         } else {
@@ -422,6 +459,9 @@ impl Instance {
             return Ok(());
         }
 
+        // Initialize context directory if enabled (ensures CLI and TUI paths both create context)
+        self.ensure_context_initialized();
+
         // Resolve on_launch hooks from the full config chain (global > profile > repo).
         // Repo hooks go through trust verification; global/profile hooks are implicitly trusted.
         let on_launch_hooks = if skip_on_launch {
@@ -480,7 +520,7 @@ impl Instance {
             } else {
                 self.get_tool_command().to_string()
             };
-            let env_args = build_docker_env_args(sandbox);
+            let env_args = build_docker_env_args(sandbox, &self.project_path);
             let env_part = if env_args.is_empty() {
                 String::new()
             } else {
@@ -516,6 +556,12 @@ impl Instance {
 
         session.create_with_size(&self.project_path, cmd.as_deref(), size)?;
 
+        // Set context environment variable for non-sandboxed sessions
+        // (sandboxed sessions get this via docker exec -e flags)
+        if !self.is_sandboxed() {
+            self.set_context_env_in_tmux();
+        }
+
         // Apply all configured tmux options (status bar, mouse, etc.)
         self.apply_tmux_options();
 
@@ -537,6 +583,87 @@ impl Instance {
             branch,
             sandbox.as_ref(),
         );
+    }
+
+    /// Set context directory environment variable in tmux session.
+    fn set_context_env_in_tmux(&self) {
+        if let Some(context_dir) = self.get_context_dir_for_env() {
+            let session_name = tmux::Session::generate_name(&self.id, &self.title);
+            let _ = std::process::Command::new("tmux")
+                .args([
+                    "set-environment",
+                    "-t",
+                    &session_name,
+                    crate::context::CONTEXT_DIR_ENV_VAR,
+                    &context_dir,
+                ])
+                .output();
+        }
+    }
+
+    /// Get the context directory path if context is enabled and inject_env is true.
+    fn get_context_dir_for_env(&self) -> Option<String> {
+        let path = std::path::Path::new(&self.project_path);
+
+        // For worktrees, load config from main repo
+        let config_path = if let Some(ref wt_info) = self.worktree_info {
+            std::path::PathBuf::from(&wt_info.main_repo_path)
+        } else {
+            path.to_path_buf()
+        };
+
+        let repo_config = super::repo_config::load_repo_config(&config_path).ok()??;
+        let context_config = repo_config.context?;
+
+        if !context_config.enabled || !context_config.inject_env {
+            return None;
+        }
+
+        let context_dir = crate::context::find_context_dir(path, &context_config.path)
+            .ok()
+            .flatten()?;
+
+        Some(context_dir.to_string_lossy().to_string())
+    }
+
+    /// Initialize context directory if enabled in repo config.
+    ///
+    /// This ensures context is created for both CLI and TUI session creation paths.
+    /// Also creates symlinks in worktrees if enabled.
+    fn ensure_context_initialized(&self) {
+        let path = std::path::Path::new(&self.project_path);
+
+        // For worktrees, we need to load config from the main repo
+        let main_repo_path = if let Some(ref wt_info) = self.worktree_info {
+            std::path::PathBuf::from(&wt_info.main_repo_path)
+        } else {
+            path.to_path_buf()
+        };
+
+        if let Ok(Some(repo_config)) = super::repo_config::load_repo_config(&main_repo_path) {
+            if let Some(ref context_config) = repo_config.context {
+                if context_config.enabled && context_config.auto_init {
+                    match crate::context::init_context(path, &context_config.path) {
+                        Ok(context_dir) => {
+                            // Create symlink in worktree if enabled
+                            if context_config.symlink_in_worktree && self.worktree_info.is_some() {
+                                if let Err(e) =
+                                    crate::context::setup_worktree_symlink(path, &context_dir)
+                                {
+                                    tracing::warn!(
+                                        "Failed to create context symlink in worktree: {}",
+                                        e
+                                    );
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            tracing::warn!("Failed to initialize context directory: {}", e);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// Apply all configured tmux options to the terminal session.
@@ -813,6 +940,28 @@ impl Instance {
             } else {
                 tracing::warn!("Ignoring malformed extra_volume entry: {}", entry);
             }
+        }
+
+        // Mount context directory if enabled
+        if let Some(context_dir) = get_context_dir_for_env(&self.project_path) {
+            let context_path = std::path::Path::new(&context_dir);
+            let container_context_path = "/workspace/.aoe-context".to_string();
+
+            volumes.push(VolumeMount {
+                host_path: context_dir.clone(),
+                container_path: container_context_path.clone(),
+                read_only: false,
+            });
+
+            environment.push((
+                crate::context::CONTEXT_DIR_ENV_VAR.to_string(),
+                container_context_path,
+            ));
+
+            tracing::debug!(
+                "Mounted context directory: {} -> /workspace/.aoe-context",
+                context_path.display()
+            );
         }
 
         // Filter anonymous_volumes to exclude paths that conflict with extra_volumes

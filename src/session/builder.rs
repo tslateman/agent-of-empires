@@ -195,6 +195,33 @@ pub fn build_instance(params: InstanceParams, existing_titles: &[&str]) -> Resul
         });
     }
 
+    // Set up shared context if enabled in repo config
+    let final_path_buf = PathBuf::from(&final_path);
+    if let Ok(Some(repo_config)) = super::load_repo_config(&final_path_buf) {
+        if let Some(ref context_config) = repo_config.context {
+            if context_config.enabled && context_config.auto_init {
+                // Initialize context directory
+                match crate::context::init_context(&final_path_buf, &context_config.path) {
+                    Ok(context_dir) => {
+                        // Create symlink in worktree if this is a worktree and symlink is enabled
+                        if context_config.symlink_in_worktree {
+                            if let Some(ref wt) = created_worktree {
+                                if let Err(e) =
+                                    crate::context::setup_worktree_symlink(&wt.path, &context_dir)
+                                {
+                                    tracing::warn!("Failed to create context symlink: {}", e);
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to initialize context directory: {}", e);
+                    }
+                }
+            }
+        }
+    }
+
     Ok(BuildResult {
         instance,
         created_worktree,

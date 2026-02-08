@@ -49,6 +49,56 @@ pub struct RepoConfig {
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sound: Option<crate::sound::SoundConfigOverride>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<ContextConfig>,
+}
+
+/// Configuration for shared context between agents.
+///
+/// When enabled, creates a `.aoe/context/` directory in the main repo with
+/// shared handoff notes (HANDOFF.md) and task tracking (TASKS.md).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContextConfig {
+    /// Enable shared context for this repository (default: false)
+    #[serde(default)]
+    pub enabled: bool,
+
+    /// Path to context directory relative to project root (default: ".aoe/context")
+    #[serde(default = "default_context_path")]
+    pub path: String,
+
+    /// Automatically initialize context directory when creating sessions (default: true)
+    #[serde(default = "default_true")]
+    pub auto_init: bool,
+
+    /// Create .aoe-context symlink in worktrees (default: true)
+    #[serde(default = "default_true")]
+    pub symlink_in_worktree: bool,
+
+    /// Inject AOE_CONTEXT_DIR environment variable into sessions (default: true)
+    #[serde(default = "default_true")]
+    pub inject_env: bool,
+}
+
+impl Default for ContextConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            path: default_context_path(),
+            auto_init: true,
+            symlink_in_worktree: true,
+            inject_env: true,
+        }
+    }
+}
+
+fn default_context_path() -> String {
+    crate::context::DEFAULT_CONTEXT_PATH.to_string()
+}
+
+fn default_true() -> bool {
+    true
 }
 
 /// Hook commands to run at various lifecycle points.
@@ -200,6 +250,7 @@ pub fn repo_config_to_profile(repo: &RepoConfig) -> ProfileConfig {
 }
 
 /// Convert a ProfileConfig back into a RepoConfig after TUI editing.
+/// Note: context config is not included in ProfileConfig (repo-level only).
 pub fn profile_to_repo_config(profile: &ProfileConfig) -> RepoConfig {
     RepoConfig {
         hooks: profile.hooks.as_ref().map(|h| HooksConfig {
@@ -212,6 +263,7 @@ pub fn profile_to_repo_config(profile: &ProfileConfig) -> RepoConfig {
         updates: profile.updates.clone(),
         tmux: profile.tmux.clone(),
         sound: profile.sound.clone(),
+        context: None,
     }
 }
 
@@ -617,6 +669,14 @@ pub const INIT_TEMPLATE: &str = r#"# Agent of Empires - Repository Configuration
 
 # [sound]
 # enabled = false
+
+# [context]
+# Shared context for agents working on the same project
+# enabled = true
+# path = ".aoe/context"        # default
+# auto_init = true             # default
+# symlink_in_worktree = true   # default
+# inject_env = true            # default
 "#;
 
 #[cfg(test)]
@@ -888,5 +948,64 @@ mod tests {
         // Non-overridden fields should be preserved
         assert!(merged.sandbox.auto_cleanup);
         assert!(merged.worktree.auto_cleanup);
+    }
+
+    #[test]
+    fn test_context_config_default() {
+        let config = ContextConfig::default();
+        assert!(!config.enabled);
+        assert_eq!(config.path, ".aoe/context");
+        assert!(config.auto_init);
+        assert!(config.symlink_in_worktree);
+        assert!(config.inject_env);
+    }
+
+    #[test]
+    fn test_context_config_deserialization() {
+        let toml = r#"
+            enabled = true
+            path = ".custom/context"
+            auto_init = false
+            symlink_in_worktree = false
+            inject_env = false
+        "#;
+        let config: ContextConfig = toml::from_str(toml).unwrap();
+        assert!(config.enabled);
+        assert_eq!(config.path, ".custom/context");
+        assert!(!config.auto_init);
+        assert!(!config.symlink_in_worktree);
+        assert!(!config.inject_env);
+    }
+
+    #[test]
+    fn test_context_config_partial_deserialization() {
+        let toml = r#"enabled = true"#;
+        let config: ContextConfig = toml::from_str(toml).unwrap();
+        assert!(config.enabled);
+        // Defaults for other fields
+        assert_eq!(config.path, ".aoe/context");
+        assert!(config.auto_init);
+        assert!(config.symlink_in_worktree);
+        assert!(config.inject_env);
+    }
+
+    #[test]
+    fn test_repo_config_with_context() {
+        let toml = r#"
+            [context]
+            enabled = true
+            path = ".aoe/shared"
+        "#;
+        let config: RepoConfig = toml::from_str(toml).unwrap();
+        assert!(config.context.is_some());
+        let ctx = config.context.unwrap();
+        assert!(ctx.enabled);
+        assert_eq!(ctx.path, ".aoe/shared");
+    }
+
+    #[test]
+    fn test_repo_config_empty_has_no_context() {
+        let config: RepoConfig = toml::from_str("").unwrap();
+        assert!(config.context.is_none());
     }
 }

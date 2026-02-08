@@ -30,7 +30,7 @@ pub use profile_config::{
 pub use repo_config::{
     check_hook_trust, execute_hooks, execute_hooks_in_container, load_repo_config,
     merge_repo_config, profile_to_repo_config, repo_config_to_profile, resolve_config_with_repo,
-    save_repo_config, trust_repo, HookTrustStatus, HooksConfig, RepoConfig,
+    save_repo_config, trust_repo, ContextConfig, HookTrustStatus, HooksConfig, RepoConfig,
 };
 pub use storage::Storage;
 
