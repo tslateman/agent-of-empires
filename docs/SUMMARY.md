@@ -26,4 +26,5 @@
 # Contributing
 
 - [Development](development.md)
+- [Roadmap](roadmap.md)
 - [Credits](credits.md)
