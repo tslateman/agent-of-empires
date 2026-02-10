@@ -643,7 +643,7 @@ impl Instance {
         if let Ok(Some(repo_config)) = super::repo_config::load_repo_config(&main_repo_path) {
             if let Some(ref context_config) = repo_config.context {
                 if context_config.enabled && context_config.auto_init {
-                    match crate::context::init_context(path, &context_config.path) {
+                    match crate::context::init_context(path, context_config) {
                         Ok(context_dir) => {
                             // Create symlink in worktree if enabled
                             if context_config.symlink_in_worktree && self.worktree_info.is_some() {

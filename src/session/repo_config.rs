@@ -79,6 +79,10 @@ pub struct ContextConfig {
     /// Inject AOE_CONTEXT_DIR environment variable into sessions (default: true)
     #[serde(default = "default_true")]
     pub inject_env: bool,
+
+    /// Generate .claude/CLAUDE.md and .claude/settings.local.json for Claude Code integration (default: true)
+    #[serde(default = "default_true")]
+    pub claude_code_integration: bool,
 }
 
 impl Default for ContextConfig {
@@ -89,6 +93,7 @@ impl Default for ContextConfig {
             auto_init: true,
             symlink_in_worktree: true,
             inject_env: true,
+            claude_code_integration: true,
         }
     }
 }
@@ -673,10 +678,11 @@ pub const INIT_TEMPLATE: &str = r#"# Agent of Empires - Repository Configuration
 # [context]
 # Shared context for agents working on the same project
 # enabled = true
-# path = ".aoe/context"        # default
-# auto_init = true             # default
-# symlink_in_worktree = true   # default
-# inject_env = true            # default
+# path = ".aoe/context"              # default
+# auto_init = true                   # default
+# symlink_in_worktree = true         # default
+# inject_env = true                  # default
+# claude_code_integration = true     # default; generates .claude/CLAUDE.md and hooks
 "#;
 
 #[cfg(test)]
@@ -958,6 +964,7 @@ mod tests {
         assert!(config.auto_init);
         assert!(config.symlink_in_worktree);
         assert!(config.inject_env);
+        assert!(config.claude_code_integration);
     }
 
     #[test]
@@ -968,6 +975,7 @@ mod tests {
             auto_init = false
             symlink_in_worktree = false
             inject_env = false
+            claude_code_integration = false
         "#;
         let config: ContextConfig = toml::from_str(toml).unwrap();
         assert!(config.enabled);
@@ -975,6 +983,7 @@ mod tests {
         assert!(!config.auto_init);
         assert!(!config.symlink_in_worktree);
         assert!(!config.inject_env);
+        assert!(!config.claude_code_integration);
     }
 
     #[test]
@@ -987,6 +996,7 @@ mod tests {
         assert!(config.auto_init);
         assert!(config.symlink_in_worktree);
         assert!(config.inject_env);
+        assert!(config.claude_code_integration);
     }
 
     #[test]

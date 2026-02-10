@@ -11,6 +11,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::git::GitWorktree;
+use crate::session::repo_config::ContextConfig;
 
 /// Default path for context directory relative to project root.
 pub const DEFAULT_CONTEXT_PATH: &str = ".aoe/context";
@@ -50,11 +51,15 @@ fn resolve_main_repo(project_path: &Path) -> Result<PathBuf> {
 ///
 /// Creates the context directory (default: `.aoe/context/`) in the main repo
 /// and populates it with HANDOFF.md and TASKS.md if they don't exist.
+/// When `claude_code_integration` is enabled, also creates:
+/// - `.aoe/hooks/session-start.sh` and `task-completed.sh` (executable)
+/// - `.claude/CLAUDE.md` with team instructions
+/// - `.claude/settings.local.json` wiring Claude Code hooks
 ///
 /// Returns the path to the created context directory.
-pub fn init_context(project_path: &Path, context_path: &str) -> Result<PathBuf> {
+pub fn init_context(project_path: &Path, config: &ContextConfig) -> Result<PathBuf> {
     let main_repo = resolve_main_repo(project_path)?;
-    let context_dir = main_repo.join(context_path);
+    let context_dir = main_repo.join(&config.path);
 
     // Create context directory if it doesn't exist
     if !context_dir.exists() {
@@ -84,9 +89,96 @@ pub fn init_context(project_path: &Path, context_path: &str) -> Result<PathBuf> 
     }
 
     // Ensure .aoe/context/ is in .gitignore
-    ensure_gitignored(&main_repo, context_path)?;
+    ensure_gitignored(&main_repo, &config.path)?;
+
+    // Create hook scripts in .aoe/hooks/
+    create_hook_scripts(&main_repo)?;
+
+    // Create Claude Code integration files if enabled
+    if config.claude_code_integration {
+        create_claude_integration(&main_repo)?;
+    }
 
     Ok(context_dir)
+}
+
+/// Create AoE hook scripts in `.aoe/hooks/`.
+fn create_hook_scripts(main_repo: &Path) -> Result<()> {
+    let hooks_dir = main_repo.join(".aoe/hooks");
+    if !hooks_dir.exists() {
+        fs::create_dir_all(&hooks_dir).with_context(|| {
+            format!("Failed to create hooks directory: {}", hooks_dir.display())
+        })?;
+    }
+
+    write_executable(
+        &hooks_dir.join("session-start.sh"),
+        templates::SESSION_START_HOOK,
+    )?;
+    write_executable(
+        &hooks_dir.join("task-completed.sh"),
+        templates::TASK_COMPLETED_HOOK,
+    )?;
+
+    Ok(())
+}
+
+/// Create `.claude/CLAUDE.md` and `.claude/settings.local.json`.
+fn create_claude_integration(main_repo: &Path) -> Result<()> {
+    let claude_dir = main_repo.join(".claude");
+    if !claude_dir.exists() {
+        fs::create_dir_all(&claude_dir).with_context(|| {
+            format!(
+                "Failed to create .claude directory: {}",
+                claude_dir.display()
+            )
+        })?;
+    }
+
+    let claude_md = claude_dir.join("CLAUDE.md");
+    if !claude_md.exists() {
+        fs::write(&claude_md, templates::TEAM_INSTRUCTIONS_TEMPLATE)
+            .with_context(|| format!("Failed to create CLAUDE.md: {}", claude_md.display()))?;
+        tracing::info!("Created .claude/CLAUDE.md");
+    }
+
+    let settings_local = claude_dir.join("settings.local.json");
+    if !settings_local.exists() {
+        fs::write(&settings_local, templates::CLAUDE_SETTINGS_TEMPLATE).with_context(|| {
+            format!(
+                "Failed to create settings.local.json: {}",
+                settings_local.display()
+            )
+        })?;
+        tracing::info!("Created .claude/settings.local.json");
+    }
+
+    Ok(())
+}
+
+/// Write a file with executable permissions, skipping if it already exists.
+#[cfg(unix)]
+fn write_executable(path: &Path, content: &str) -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+
+    if path.exists() {
+        return Ok(());
+    }
+    fs::write(path, content).with_context(|| format!("Failed to write: {}", path.display()))?;
+    fs::set_permissions(path, fs::Permissions::from_mode(0o755))
+        .with_context(|| format!("Failed to set permissions: {}", path.display()))?;
+    tracing::info!("Created {}", path.display());
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn write_executable(path: &Path, content: &str) -> Result<()> {
+    if path.exists() {
+        return Ok(());
+    }
+    fs::write(path, content).with_context(|| format!("Failed to write: {}", path.display()))?;
+    tracing::info!("Created {}", path.display());
+    Ok(())
 }
 
 /// Ensure the context path is in the project's .gitignore.
@@ -234,6 +326,21 @@ mod tests {
         (dir, repo_path)
     }
 
+    fn default_config() -> ContextConfig {
+        ContextConfig {
+            enabled: true,
+            ..ContextConfig::default()
+        }
+    }
+
+    fn config_with_path(path: &str) -> ContextConfig {
+        ContextConfig {
+            enabled: true,
+            path: path.to_string(),
+            ..ContextConfig::default()
+        }
+    }
+
     #[test]
     fn test_find_context_dir_not_exists() {
         let (dir, repo_path) = setup_test_repo();
@@ -260,8 +367,9 @@ mod tests {
     #[test]
     fn test_init_context_creates_directory() {
         let (dir, repo_path) = setup_test_repo();
+        let config = default_config();
 
-        let result = init_context(&repo_path, DEFAULT_CONTEXT_PATH).unwrap();
+        let result = init_context(&repo_path, &config).unwrap();
 
         assert!(result.exists());
         assert!(result.join("HANDOFF.md").exists());
@@ -279,7 +387,8 @@ mod tests {
         let custom_content = "# Custom Handoff\nMy notes here";
         fs::write(context_dir.join("HANDOFF.md"), custom_content).unwrap();
 
-        init_context(&repo_path, DEFAULT_CONTEXT_PATH).unwrap();
+        let config = default_config();
+        init_context(&repo_path, &config).unwrap();
 
         // Verify custom content was preserved
         let content = fs::read_to_string(context_dir.join("HANDOFF.md")).unwrap();
@@ -293,8 +402,9 @@ mod tests {
     #[test]
     fn test_init_context_adds_to_gitignore() {
         let (dir, repo_path) = setup_test_repo();
+        let config = default_config();
 
-        init_context(&repo_path, DEFAULT_CONTEXT_PATH).unwrap();
+        init_context(&repo_path, &config).unwrap();
 
         let gitignore = fs::read_to_string(repo_path.join(".gitignore")).unwrap();
         assert!(gitignore.contains("/.aoe/context/"));
@@ -308,7 +418,8 @@ mod tests {
         // Create existing .gitignore
         fs::write(repo_path.join(".gitignore"), "node_modules/\n.env\n").unwrap();
 
-        init_context(&repo_path, DEFAULT_CONTEXT_PATH).unwrap();
+        let config = default_config();
+        init_context(&repo_path, &config).unwrap();
 
         let gitignore = fs::read_to_string(repo_path.join(".gitignore")).unwrap();
         assert!(gitignore.contains("node_modules/"));
@@ -324,7 +435,8 @@ mod tests {
         // Create existing .gitignore with context already ignored
         fs::write(repo_path.join(".gitignore"), "/.aoe/context/\n").unwrap();
 
-        init_context(&repo_path, DEFAULT_CONTEXT_PATH).unwrap();
+        let config = default_config();
+        init_context(&repo_path, &config).unwrap();
 
         let gitignore = fs::read_to_string(repo_path.join(".gitignore")).unwrap();
         // Should not have duplicate entries
@@ -388,19 +500,132 @@ mod tests {
     fn test_custom_context_path() {
         let (dir, repo_path) = setup_test_repo();
 
-        let custom_path = ".custom/shared-context";
-        let result = init_context(&repo_path, custom_path).unwrap();
+        let config = config_with_path(".custom/shared-context");
+        let result = init_context(&repo_path, &config).unwrap();
 
         assert!(result.exists());
         // Canonicalize both paths to handle /var -> /private/var symlinks on macOS
         let result_canonical = result.canonicalize().unwrap();
-        let expected_canonical = repo_path.join(custom_path).canonicalize().unwrap();
+        let expected_canonical = repo_path
+            .join(".custom/shared-context")
+            .canonicalize()
+            .unwrap();
         assert_eq!(result_canonical, expected_canonical);
         assert!(result.join("HANDOFF.md").exists());
         assert!(result.join("TASKS.md").exists());
 
         let gitignore = fs::read_to_string(repo_path.join(".gitignore")).unwrap();
         assert!(gitignore.contains("/.custom/shared-context/"));
+        drop(dir);
+    }
+
+    #[test]
+    fn test_init_context_creates_hook_scripts() {
+        let (dir, repo_path) = setup_test_repo();
+        let config = default_config();
+
+        init_context(&repo_path, &config).unwrap();
+
+        let session_start = repo_path.join(".aoe/hooks/session-start.sh");
+        let task_completed = repo_path.join(".aoe/hooks/task-completed.sh");
+        assert!(session_start.exists());
+        assert!(task_completed.exists());
+
+        // Verify executable permissions on unix
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let perms = fs::metadata(&session_start).unwrap().permissions();
+            assert_ne!(
+                perms.mode() & 0o111,
+                0,
+                "session-start.sh should be executable"
+            );
+            let perms = fs::metadata(&task_completed).unwrap().permissions();
+            assert_ne!(
+                perms.mode() & 0o111,
+                0,
+                "task-completed.sh should be executable"
+            );
+        }
+
+        // Verify content
+        let content = fs::read_to_string(&session_start).unwrap();
+        assert!(content.contains("HANDOFF.md"));
+        let content = fs::read_to_string(&task_completed).unwrap();
+        assert!(content.contains("HANDOFF.md"));
+        drop(dir);
+    }
+
+    #[test]
+    fn test_init_context_creates_claude_md() {
+        let (dir, repo_path) = setup_test_repo();
+        let config = default_config();
+
+        init_context(&repo_path, &config).unwrap();
+
+        let claude_md = repo_path.join(".claude/CLAUDE.md");
+        assert!(claude_md.exists());
+
+        let content = fs::read_to_string(&claude_md).unwrap();
+        assert!(content.contains("Team Context Protocol"));
+        assert!(content.contains("HANDOFF.md"));
+        drop(dir);
+    }
+
+    #[test]
+    fn test_init_context_creates_settings_local() {
+        let (dir, repo_path) = setup_test_repo();
+        let config = default_config();
+
+        init_context(&repo_path, &config).unwrap();
+
+        let settings = repo_path.join(".claude/settings.local.json");
+        assert!(settings.exists());
+
+        let content = fs::read_to_string(&settings).unwrap();
+        assert!(content.contains("SessionStart"));
+        assert!(content.contains("TaskCompleted"));
+        assert!(content.contains("session-start.sh"));
+        drop(dir);
+    }
+
+    #[test]
+    fn test_init_context_preserves_existing_claude_md() {
+        let (dir, repo_path) = setup_test_repo();
+
+        // Pre-create .claude/CLAUDE.md with custom content
+        let claude_dir = repo_path.join(".claude");
+        fs::create_dir_all(&claude_dir).unwrap();
+        let custom = "# My Custom Instructions\nDo things my way.";
+        fs::write(claude_dir.join("CLAUDE.md"), custom).unwrap();
+
+        let config = default_config();
+        init_context(&repo_path, &config).unwrap();
+
+        let content = fs::read_to_string(claude_dir.join("CLAUDE.md")).unwrap();
+        assert_eq!(content, custom);
+        drop(dir);
+    }
+
+    #[test]
+    fn test_init_context_skips_claude_files_when_disabled() {
+        let (dir, repo_path) = setup_test_repo();
+        let config = ContextConfig {
+            enabled: true,
+            claude_code_integration: false,
+            ..ContextConfig::default()
+        };
+
+        init_context(&repo_path, &config).unwrap();
+
+        // Hook scripts should still be created
+        assert!(repo_path.join(".aoe/hooks/session-start.sh").exists());
+        assert!(repo_path.join(".aoe/hooks/task-completed.sh").exists());
+
+        // Claude files should NOT be created
+        assert!(!repo_path.join(".claude/CLAUDE.md").exists());
+        assert!(!repo_path.join(".claude/settings.local.json").exists());
         drop(dir);
     }
 }
