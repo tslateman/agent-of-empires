@@ -1,0 +1,48 @@
+# ============================================================
+#  MATRIX -- Free your mind.
+# ============================================================
+#
+# Each operator jacks in from a different entry point --
+# sandboxed, on their own worktree branch, bending the rules.
+#
+# Requires bare repo setup for sandbox + worktrees to work together.
+# See: https://njbrake.github.io/agent-of-empires/guides/workflow
+#
+# Usage:
+#   aoe import examples/matrix/manifest.toml --launch
+
+[[sessions]]
+title = "neo"
+path = "."
+group = "matrix"
+sandbox = true
+yolo = true
+worktree = "neo"
+create_branch = true
+
+[[sessions]]
+title = "trinity"
+path = "."
+group = "matrix"
+sandbox = true
+yolo = true
+worktree = "trinity"
+create_branch = true
+
+[[sessions]]
+title = "morpheus"
+path = "."
+group = "matrix"
+sandbox = true
+yolo = true
+worktree = "morpheus"
+create_branch = true
+
+[[sessions]]
+title = "oracle"
+path = "."
+group = "matrix"
+sandbox = true
+yolo = true
+worktree = "oracle"
+create_branch = true

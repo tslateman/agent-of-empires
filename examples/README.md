@@ -36,7 +36,8 @@ Import manifests that create a themed group of agents. Each is functionally diff
 | [Zerg](zerg/)             | overlord, zergling, hydralisk      | Sandboxed, yolo mode -- the swarm asks no permission   |
 | [Fellowship](fellowship/) | frodo, aragorn, gandalf            | No sandbox, each on its own worktree branch            |
 | [Romans](romans/)         | centurion, architect, scout        | Sandboxed, each on its own worktree branch             |
-| [Starfleet](starfleet/)   | picard, riker, data, worf, laforge | Sandboxed, all on the same branch -- big crew          |
+| [Matrix](matrix/)         | neo, trinity, morpheus, oracle     | Sandboxed, worktrees, yolo -- the full stack           |
+| [Starfleet](starfleet/)   | picard, riker, data, worf, laforge | Mixed -- Picard on the bridge, away team sandboxed     |
 
 ### Usage
 

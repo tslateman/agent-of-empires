@@ -2,8 +2,8 @@
 #  STARFLEET -- Explore. Document. Follow the Prime Directive.
 # ============================================================
 #
-# Full bridge crew, all sandboxed on the same branch.
-# Five officers, one mission.
+# Picard stays on the bridge (unsandboxed). The away team
+# beams down to the planet (sandboxed). Five officers, one mission.
 #
 # Usage:
 #   aoe import examples/starfleet/manifest.toml --launch
@@ -12,7 +12,6 @@
 title = "picard"
 path = "."
 group = "starfleet"
-sandbox = true
 
 [[sessions]]
 title = "riker"
