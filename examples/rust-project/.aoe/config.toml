@@ -12,7 +12,7 @@ default_tool = "claude"
 
 [sandbox]
 enabled_by_default = true
-default_image = "ghcr.io/njbrake/aoe-dev-sandbox:latest"
+default_image = "ghcr.io/tslateman/aoe-sandbox:rust"
 environment = ["ANTHROPIC_API_KEY"]
 volume_ignores = ["target"]
 cpu_limit = "8"

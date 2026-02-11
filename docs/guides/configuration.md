@@ -83,7 +83,7 @@ delete_branch_on_cleanup = false
 [sandbox]
 enabled_by_default = false
 yolo_mode_default = false
-default_image = "ghcr.io/njbrake/aoe-sandbox:latest"
+default_image = "ghcr.io/tslateman/aoe-sandbox:lite"
 cpu_limit = "4"
 memory_limit = "8g"
 environment = ["ANTHROPIC_API_KEY", "OPENAI_API_KEY"]
@@ -98,7 +98,7 @@ default_terminal_mode = "host"
 | ----------------------- | -------------------------------------------------- | ------------------------------------------------------------------- |
 | `enabled_by_default`    | `false`                                            | Auto-enable sandbox for new sessions                                |
 | `yolo_mode_default`     | `false`                                            | Skip agent permission prompts in sandbox                            |
-| `default_image`         | `ghcr.io/njbrake/aoe-sandbox:latest`               | Docker image for containers                                         |
+| `default_image`         | `ghcr.io/tslateman/aoe-sandbox:lite`               | Docker image for containers                                         |
 | `cpu_limit`             | (none)                                             | CPU limit (e.g., `"4"`)                                             |
 | `memory_limit`          | (none)                                             | Memory limit (e.g., `"8g"`)                                         |
 | `environment`           | `["TERM", "COLORTERM", "FORCE_COLOR", "NO_COLOR"]` | Host env var names to pass through                                  |

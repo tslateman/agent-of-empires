@@ -47,7 +47,7 @@ aoe remove <session> --keep-container
 [sandbox]
 enabled_by_default = false
 yolo_mode_default = false
-default_image = "ghcr.io/njbrake/aoe-sandbox:latest"
+default_image = "ghcr.io/tslateman/aoe-sandbox:lite"
 auto_cleanup = true
 cpu_limit = "4"
 memory_limit = "8g"
@@ -60,7 +60,7 @@ environment = ["ANTHROPIC_API_KEY"]
 | ----------------------- | ------------------------------------ | ------------------------------------------------------------------------------------- |
 | `enabled_by_default`    | `false`                              | Auto-enable sandbox for new sessions                                                  |
 | `yolo_mode_default`     | `false`                              | Skip agent permission prompts in sandboxed sessions                                   |
-| `default_image`         | `ghcr.io/njbrake/aoe-sandbox:latest` | Docker image to use                                                                   |
+| `default_image`         | `ghcr.io/tslateman/aoe-sandbox:lite` | Docker image to use                                                                   |
 | `auto_cleanup`          | `true`                               | Remove containers when sessions are deleted                                           |
 | `cpu_limit`             | (none)                               | CPU limit (e.g., "4")                                                                 |
 | `memory_limit`          | (none)                               | Memory limit (e.g., "8g")                                                             |
@@ -150,43 +150,44 @@ To use a literal value starting with `$`, double it: `$$LITERAL` is injected as 
 
 ## Available Images
 
-AOE provides two official sandbox images:
+AOE provides several sandbox images, built from Dockerfiles in `docker/`:
 
-| Image                                    | Description                                                                                   |
-| ---------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `ghcr.io/njbrake/aoe-sandbox:latest`     | Base image with Claude Code, OpenCode, Mistral Vibe, Codex CLI, Gemini CLI, git, ripgrep, fzf |
-| `ghcr.io/njbrake/aoe-dev-sandbox:latest` | Extended image with additional dev tools                                                      |
+| Image                                  | Dockerfile          | Description                                                                                  |
+| -------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------- |
+| `ghcr.io/tslateman/aoe-sandbox:lite`   | `Dockerfile`        | Lightweight image with Claude Code, git, ripgrep                                             |
+| `ghcr.io/tslateman/aoe-sandbox:full`   | `Dockerfile.full`   | All AI coding tools: Claude Code, OpenCode, Mistral Vibe, Codex CLI, Gemini CLI, Copilot CLI |
+| `ghcr.io/tslateman/aoe-sandbox:python` | `Dockerfile.python` | Claude Code with uv and Python 3.12                                                          |
+| `ghcr.io/tslateman/aoe-sandbox:golang` | `Dockerfile.golang` | Claude Code with Go 1.24                                                                     |
+| `ghcr.io/tslateman/aoe-sandbox:rust`   | `Dockerfile.rust`   | Claude Code with Rust toolchain (rustup, cargo, rustc)                                       |
+| `ghcr.io/tslateman/aoe-sandbox:node`   | `Dockerfile.node`   | Claude Code with Node.js 22 runtime                                                          |
+| `ghcr.io/tslateman/aoe-sandbox:deno`   | `Dockerfile.deno`   | Claude Code with Deno runtime                                                                |
 
-### Dev Sandbox Tools
-
-The dev sandbox (`aoe-dev-sandbox`) includes everything in the base image plus:
-
-- **Rust** (rustup, cargo, rustc)
-- **uv** (fast Python package manager)
-- **Node.js LTS** (via nvm, with npm and npx)
-- **GitHub CLI** (gh)
-
-To use the dev sandbox:
+Pre-pull an image:
 
 ```bash
-# Per-session
-aoe add --sandbox-image ghcr.io/njbrake/aoe-dev-sandbox:latest .
+docker pull ghcr.io/tslateman/aoe-sandbox:lite
+```
+
+Use a specific image per-session:
+
+```bash
+aoe add --sandbox-image ghcr.io/tslateman/aoe-sandbox:full .
 
 # Or set as default in ~/.agent-of-empires/config.toml
 [sandbox]
-default_image = "ghcr.io/njbrake/aoe-dev-sandbox:latest"
+default_image = "ghcr.io/tslateman/aoe-sandbox:full"
 ```
 
 ## Custom Docker Images
 
-The default sandbox image includes Claude Code, OpenCode, Mistral Vibe, Codex CLI, Gemini CLI, git, and basic development tools. For projects requiring additional dependencies beyond what the dev sandbox provides, you can extend either base image.
+The default sandbox image (`ghcr.io/tslateman/aoe-sandbox:lite`) includes Claude Code, git, and ripgrep. For projects requiring additional dependencies, extend any base image.
 
 ### Step 1: Create a Dockerfile
 
 Create a `Dockerfile` in your project (or a shared location):
 
 ```dockerfile
-FROM ghcr.io/njbrake/aoe-sandbox:latest
+FROM ghcr.io/tslateman/aoe-sandbox:lite
 
 # Example: Add Python for a data science project
 RUN apt-get update && apt-get install -y \

@@ -49,7 +49,7 @@ Override sandbox settings for this repo:
 ```toml
 [sandbox]
 enabled_by_default = true
-default_image = "ghcr.io/njbrake/aoe-dev-sandbox:latest"
+default_image = "ghcr.io/tslateman/aoe-sandbox:node"
 environment = ["NODE_ENV", "DATABASE_URL"]
 environment_values = { CUSTOM_KEY = "value" }
 volume_ignores = ["node_modules", ".next", "target"]
@@ -109,7 +109,7 @@ default_tool = "claude"
 
 [sandbox]
 enabled_by_default = true
-default_image = "ghcr.io/njbrake/aoe-dev-sandbox:latest"
+default_image = "ghcr.io/tslateman/aoe-sandbox:node"
 environment = ["DATABASE_URL", "REDIS_URL"]
 environment_values = { NODE_ENV = "development" }
 volume_ignores = ["node_modules", ".next"]

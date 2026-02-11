@@ -1,0 +1,12 @@
+# aoe-sandbox-golang: Docker image with Claude Code and Go
+# For Go projects
+
+FROM ghcr.io/tslateman/aoe-sandbox:lite
+
+RUN curl -fsSL https://go.dev/dl/go1.24.1.linux-$(dpkg --print-architecture).tar.gz \
+    | tar -C /usr/local -xzf -
+
+ENV PATH="/usr/local/go/bin:/root/go/bin:${PATH}"
+ENV GOPATH="/root/go"
+
+CMD ["sleep", "infinity"]

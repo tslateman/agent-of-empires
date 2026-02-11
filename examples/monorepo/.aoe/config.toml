@@ -20,7 +20,7 @@ default_tool = "claude"
 
 [sandbox]
 enabled_by_default = true
-default_image = "ghcr.io/njbrake/aoe-dev-sandbox:latest"
+default_image = "ghcr.io/tslateman/aoe-sandbox:node"
 environment = ["ANTHROPIC_API_KEY", "NODE_ENV"]
 volume_ignores = ["node_modules", ".turbo", "dist", ".next"]
 memory_limit = "16g"

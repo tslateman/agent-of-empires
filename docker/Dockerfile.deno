@@ -1,22 +1,25 @@
-# aoe-sandbox: Lightweight Docker image for Agent of Empires sandbox sessions
-# This minimal image provides Claude Code in an isolated environment
-# For additional tools (OpenCode, Codex, Gemini, Copilot, Vibe), see Dockerfile.full
+# aoe-sandbox-deno: Docker image with Claude Code and Deno runtime
+# For TypeScript/JavaScript projects using Deno
 
 FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Minimal dependencies for Claude Code
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
     ca-certificates \
     openssh-client \
     ripgrep \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Run as root - IS_SANDBOX=1 allows Claude Code to use --dangerously-skip-permissions
 WORKDIR /root
+
+# Install Deno
+RUN curl -fsSL https://deno.land/install.sh | sh
+ENV DENO_INSTALL="/root/.deno"
+ENV PATH="${DENO_INSTALL}/bin:${PATH}"
 
 # Install Claude Code CLI
 RUN curl -fsSL https://claude.ai/install.sh | bash
@@ -25,7 +28,6 @@ ENV PATH="/root/.local/bin:${PATH}"
 # Create directories for credential mounts
 RUN mkdir -p /root/.claude /root/.ssh
 
-# Allow Claude Code to use --dangerously-skip-permissions as root
 ENV IS_SANDBOX=1
 
 WORKDIR /workspace

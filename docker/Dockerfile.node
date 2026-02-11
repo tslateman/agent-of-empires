@@ -1,12 +1,10 @@
-# aoe-sandbox: Lightweight Docker image for Agent of Empires sandbox sessions
-# This minimal image provides Claude Code in an isolated environment
-# For additional tools (OpenCode, Codex, Gemini, Copilot, Vibe), see Dockerfile.full
+# aoe-sandbox-node: Docker image with Claude Code and Node.js runtime
+# For JavaScript/TypeScript projects using Node.js
 
 FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Minimal dependencies for Claude Code
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
@@ -15,8 +13,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ripgrep \
     && rm -rf /var/lib/apt/lists/*
 
-# Run as root - IS_SANDBOX=1 allows Claude Code to use --dangerously-skip-permissions
 WORKDIR /root
+
+# Install Node.js 22.x LTS
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Claude Code CLI
 RUN curl -fsSL https://claude.ai/install.sh | bash
@@ -25,7 +27,6 @@ ENV PATH="/root/.local/bin:${PATH}"
 # Create directories for credential mounts
 RUN mkdir -p /root/.claude /root/.ssh
 
-# Allow Claude Code to use --dangerously-skip-permissions as root
 ENV IS_SANDBOX=1
 
 WORKDIR /workspace

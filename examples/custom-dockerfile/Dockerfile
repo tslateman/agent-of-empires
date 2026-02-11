@@ -4,7 +4,7 @@
 # Build: docker build -t my-sandbox:latest examples/custom-dockerfile/
 # Use:   aoe add --sandbox-image my-sandbox:latest .
 
-FROM ghcr.io/njbrake/aoe-dev-sandbox:latest
+FROM ghcr.io/tslateman/aoe-sandbox:lite
 
 # System packages
 RUN apt-get update && apt-get install -y \

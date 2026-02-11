@@ -64,7 +64,7 @@ The first sandboxed session pulls the Docker image, which can take several minut
 Pre-pull to avoid the wait:
 
 ```bash
-docker pull ghcr.io/njbrake/aoe-sandbox:latest
+docker build -t ghcr.io/tslateman/aoe-sandbox:lite -f docker/Dockerfile docker/
 ```
 
 ### Container killed (OOM)
@@ -100,7 +100,7 @@ The base sandbox image doesn't include `gh`. Use the dev sandbox image:
 
 ```toml
 [sandbox]
-default_image = "ghcr.io/njbrake/aoe-dev-sandbox:latest"
+default_image = "ghcr.io/tslateman/aoe-sandbox:full"
 ```
 
 Or pass a GitHub token:

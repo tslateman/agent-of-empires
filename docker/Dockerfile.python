@@ -1,0 +1,15 @@
+# aoe-sandbox-python: Docker image with Claude Code, uv, and Python
+# For Python projects managed with uv
+
+FROM ghcr.io/tslateman/aoe-sandbox:lite
+
+# Install uv from official image
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Pre-install Python 3.12 so agents don't wait
+RUN uv python install 3.12
+
+# Prefer uv-managed Python over any system Python
+ENV UV_PYTHON_PREFERENCE=managed
+
+CMD ["sleep", "infinity"]

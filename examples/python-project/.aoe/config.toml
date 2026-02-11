@@ -12,7 +12,7 @@ default_tool = "claude"
 
 [sandbox]
 enabled_by_default = true
-default_image = "ghcr.io/njbrake/aoe-dev-sandbox:latest"
+default_image = "ghcr.io/tslateman/aoe-sandbox:python"
 environment = ["ANTHROPIC_API_KEY", "VIRTUAL_ENV"]
 volume_ignores = [".venv", "__pycache__", ".mypy_cache", ".pytest_cache"]
 memory_limit = "8g"

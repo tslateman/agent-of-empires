@@ -98,7 +98,7 @@ pub fn ensure_named_volume(name: &str) -> Result<()> {
 
 /// The hardcoded fallback sandbox image.
 pub fn default_sandbox_image() -> &'static str {
-    "ghcr.io/njbrake/aoe-sandbox:latest"
+    "ghcr.io/tslateman/aoe-sandbox:lite"
 }
 
 /// Returns the effective default sandbox image, checking user config first.
