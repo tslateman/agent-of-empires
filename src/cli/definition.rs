@@ -7,6 +7,7 @@ use clap::{Parser, Subcommand};
 
 use super::add::AddArgs;
 use super::group::GroupCommands;
+use super::import::ImportArgs;
 use super::init::InitArgs;
 use super::list::ListArgs;
 use super::profile::ProfileCommands;
@@ -42,6 +43,9 @@ pub struct Cli {
 pub enum Commands {
     /// Add a new session
     Add(AddArgs),
+
+    /// Import sessions from a TOML manifest
+    Import(ImportArgs),
 
     /// Initialize .aoe/config.toml in a repository
     Init(InitArgs),

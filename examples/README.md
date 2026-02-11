@@ -1,6 +1,17 @@
 # Examples
 
-Sample configurations for common project setups. Copy the relevant `.aoe/config.toml` into your project and adjust as needed.
+## Quick Start
+
+```bash
+cd /path/to/your/project
+aoe import examples/mongols/manifest.toml --launch
+```
+
+This creates a group of named sessions, all pointed at your project.
+
+## By Stack
+
+Repo configs (`.aoe/config.toml`) that set defaults for new sessions in a project.
 
 | Example                                 | Description                                              |
 | --------------------------------------- | -------------------------------------------------------- |
@@ -10,16 +21,32 @@ Sample configurations for common project setups. Copy the relevant `.aoe/config.
 | [monorepo](monorepo/)                   | Multi-package monorepo with worktrees                    |
 | [custom-dockerfile](custom-dockerfile/) | Extending the sandbox image with project-specific tools  |
 
-## Usage
+```bash
+cp -r examples/node-project/.aoe /path/to/your/project/
+```
+
+## By Philosophy
+
+Import manifests that create a themed group of agents. Each is functionally different.
+
+| Theme                     | Crew                               | What Makes It Different                                |
+| ------------------------- | ---------------------------------- | ------------------------------------------------------ |
+| [Mongols](mongols/)       | khan, rider, archer                | No sandbox, no worktrees -- raw speed                  |
+| [Spartans](spartans/)     | master-chief, cortana, noble-six   | No sandbox, no worktrees, yolo -- feet first into hell |
+| [Zerg](zerg/)             | overlord, zergling, hydralisk      | Sandboxed, yolo mode -- the swarm asks no permission   |
+| [Fellowship](fellowship/) | frodo, aragorn, gandalf            | No sandbox, each on its own worktree branch            |
+| [Romans](romans/)         | centurion, architect, scout        | Sandboxed, each on its own worktree branch             |
+| [Starfleet](starfleet/)   | picard, riker, data, worf, laforge | Sandboxed, all on the same branch -- big crew          |
+
+### Usage
 
 ```bash
-# Copy an example config into your project
-cp -r examples/node-project/.aoe /path/to/your/project/
+# Preview what would be created
+aoe import examples/starfleet/manifest.toml --dry-run
 
-# Edit to match your needs
-$EDITOR /path/to/your/project/.aoe/config.toml
+# Import and launch
+aoe import examples/starfleet/manifest.toml --launch
 
-# Initialize (or just use the copied config)
-cd /path/to/your/project
-aoe
+# Import into an existing setup (skip duplicates)
+aoe import examples/romans/manifest.toml --skip-existing
 ```

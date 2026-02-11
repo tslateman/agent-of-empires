@@ -338,7 +338,7 @@ fn trust_and_run_on_create(
     Ok(())
 }
 
-fn detect_tool(cmd: &str) -> Result<String> {
+pub fn detect_tool(cmd: &str) -> Result<String> {
     let cmd_lower = cmd.to_lowercase();
     if cmd_lower.is_empty() || cmd_lower.contains("claude") {
         Ok("claude".to_string())

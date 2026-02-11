@@ -1,0 +1,31 @@
+# ============================================================
+#  FELLOWSHIP -- One repo to rule them all.
+# ============================================================
+#
+# The party splits. Frodo takes one path, Aragorn another,
+# Gandalf a third. Each on their own branch, uncontained --
+# out in the wild.
+#
+# Usage:
+#   aoe import examples/fellowship/manifest.toml --launch
+
+[[sessions]]
+title = "frodo"
+path = "."
+group = "fellowship"
+worktree = "frodo"
+create_branch = true
+
+[[sessions]]
+title = "aragorn"
+path = "."
+group = "fellowship"
+worktree = "aragorn"
+create_branch = true
+
+[[sessions]]
+title = "gandalf"
+path = "."
+group = "fellowship"
+worktree = "gandalf"
+create_branch = true

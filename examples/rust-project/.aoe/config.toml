@@ -1,10 +1,11 @@
 # Rust project
 #
-# Ignores the target directory in the Docker mount (build artifacts
+# Sandboxed with target directory ignored (build artifacts
 # can be gigabytes and slow down volume syncs).
+# Uncomment hooks to pre-fetch dependencies.
 
-[hooks]
-on_create = ["cargo fetch"]
+# [hooks]
+# on_create = ["cargo fetch"]
 
 [session]
 default_tool = "claude"

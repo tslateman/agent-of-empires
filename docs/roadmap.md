@@ -18,7 +18,8 @@ Planned features and improvements, drawn from [open issues](https://github.com/n
 - **Cursor CLI support** ([#7](https://github.com/njbrake/agent-of-empires/issues/7)): Add Cursor as a supported coding agent.
 - **Version in help dialog** ([#134](https://github.com/njbrake/agent-of-empires/issues/134)): Display the AoE version when pressing `?` to open help.
 - **Integration/e2e testing** ([#118](https://github.com/njbrake/agent-of-empires/issues/118)): Build out a proper integration test suite, possibly using tmux-based or Docker-based test environments.
-- **Group rename** : Allow renaming a group by pressing `r` when a group is selected.
+- **Group rename**: Allow renaming a group by pressing `r` when a group is selected.
+- **Session discovery**: Scan for existing tmux sessions running Claude and offer to import/adopt them into aoe.
 
 ## Ideas
 

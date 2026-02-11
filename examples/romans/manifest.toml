@@ -1,0 +1,36 @@
+# ============================================================
+#  ROMANS -- Disciplined. Structured. Every road leads to prod.
+# ============================================================
+#
+# Three legions, each fortified in its own worktree.
+# Centurion leads, Architect builds, Scout surveys.
+#
+# Requires bare repo setup for sandbox + worktrees to work together.
+# See: https://njbrake.github.io/agent-of-empires/guides/workflow
+#
+# Usage:
+#   aoe import examples/romans/manifest.toml --launch
+
+[[sessions]]
+title = "centurion"
+path = "."
+group = "romans"
+sandbox = true
+worktree = "centurion"
+create_branch = true
+
+[[sessions]]
+title = "architect"
+path = "."
+group = "romans"
+sandbox = true
+worktree = "architect"
+create_branch = true
+
+[[sessions]]
+title = "scout"
+path = "."
+group = "romans"
+sandbox = true
+worktree = "scout"
+create_branch = true

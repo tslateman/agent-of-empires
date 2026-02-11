@@ -1,11 +1,11 @@
 # Node.js / TypeScript project
 #
-# Installs dependencies on session creation, ignores node_modules
-# and build artifacts in the Docker mount to avoid slow volume syncs.
+# Sandboxed with volume ignores for node_modules and build output.
+# Uncomment hooks to auto-install dependencies on session create/launch.
 
-[hooks]
-on_create = ["npm install"]
-on_launch = ["npm install"]
+# [hooks]
+# on_create = ["npm install"]
+# on_launch = ["npm install"]
 
 [session]
 default_tool = "claude"

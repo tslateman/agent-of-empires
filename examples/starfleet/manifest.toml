@@ -1,0 +1,39 @@
+# ============================================================
+#  STARFLEET -- Explore. Document. Follow the Prime Directive.
+# ============================================================
+#
+# Full bridge crew, all sandboxed on the same branch.
+# Five officers, one mission.
+#
+# Usage:
+#   aoe import examples/starfleet/manifest.toml --launch
+
+[[sessions]]
+title = "picard"
+path = "."
+group = "starfleet"
+sandbox = true
+
+[[sessions]]
+title = "riker"
+path = "."
+group = "starfleet"
+sandbox = true
+
+[[sessions]]
+title = "data"
+path = "."
+group = "starfleet"
+sandbox = true
+
+[[sessions]]
+title = "worf"
+path = "."
+group = "starfleet"
+sandbox = true
+
+[[sessions]]
+title = "laforge"
+path = "."
+group = "starfleet"
+sandbox = true

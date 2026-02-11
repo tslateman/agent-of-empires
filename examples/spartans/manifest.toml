@@ -1,0 +1,27 @@
+# ============================================================
+#  SPARTANS -- Feet first into hell.
+# ============================================================
+#
+# No sandbox, no worktrees, no permission prompts.
+# Master Chief doesn't wait for approval. Neither do you.
+#
+# Usage:
+#   aoe import examples/spartans/manifest.toml --launch
+
+[[sessions]]
+title = "master-chief"
+path = "."
+group = "spartans"
+yolo = true
+
+[[sessions]]
+title = "cortana"
+path = "."
+group = "spartans"
+yolo = true
+
+[[sessions]]
+title = "noble-six"
+path = "."
+group = "spartans"
+yolo = true

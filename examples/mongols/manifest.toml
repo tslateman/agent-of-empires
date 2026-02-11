@@ -1,0 +1,24 @@
+# ============================================================
+#  MONGOLS -- Fast. Adaptable. No walls can hold them.
+# ============================================================
+#
+# Khan commands, Rider strikes, Archer covers.
+# No sandbox, no worktrees -- the steppe has no fences.
+#
+# Usage:
+#   aoe import examples/mongols/manifest.toml --launch
+
+[[sessions]]
+title = "khan"
+path = "."
+group = "mongols"
+
+[[sessions]]
+title = "rider"
+path = "."
+group = "mongols"
+
+[[sessions]]
+title = "archer"
+path = "."
+group = "mongols"

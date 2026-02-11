@@ -11,9 +11,9 @@
 #   git fetch origin
 #   git worktree add main main
 
-[hooks]
-on_create = ["npm install"]
-on_launch = ["npm install"]
+# [hooks]
+# on_create = ["npm install"]
+# on_launch = ["npm install"]
 
 [session]
 default_tool = "claude"

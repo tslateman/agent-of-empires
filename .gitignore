@@ -45,6 +45,7 @@ Thumbs.db
 # Per-repo aoe config (created by `aoe init`, should be committed per-repo by users)
 # Ignored here since this is the aoe tool repo itself
 .aoe/
+!examples/**/.aoe/
 
 # Spec Kit
 .genreleases/

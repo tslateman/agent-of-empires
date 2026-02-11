@@ -1,0 +1,30 @@
+# ============================================================
+#  ZERG -- Swarm. Overwhelm. Evolve.
+# ============================================================
+#
+# Overlord watches, Zergling rushes, Hydralisk spines down
+# whatever's left. Yolo mode -- the swarm asks no permission.
+#
+# Usage:
+#   aoe import examples/zerg/manifest.toml --launch
+
+[[sessions]]
+title = "overlord"
+path = "."
+group = "zerg"
+sandbox = true
+yolo = true
+
+[[sessions]]
+title = "zergling"
+path = "."
+group = "zerg"
+sandbox = true
+yolo = true
+
+[[sessions]]
+title = "hydralisk"
+path = "."
+group = "zerg"
+sandbox = true
+yolo = true
