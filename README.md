@@ -21,17 +21,34 @@ Run multiple AI agents in parallel across different branches of your codebase, e
 
 ![Agent of Empires Demo](docs/assets/demo.gif)
 
+## Who Is This For?
+
+- **Teams running multiple AI agents** on different features or branches simultaneously
+- **Developers who want isolation** between agent sessions (separate worktrees, Docker containers)
+- **Anyone tired of juggling terminal tabs** when working with AI coding assistants
+
+If you run one agent at a time in a single terminal, you don't need AoE. If you run several agents on different tasks, AoE gives you a dashboard and workflow automation.
+
 ## Features
 
+### Core
+
+- **TUI dashboard** -- create, monitor, and manage sessions from one screen
 - **Multi-agent support** -- Claude Code, OpenCode, Mistral Vibe, Codex CLI, and Gemini CLI
-- **TUI dashboard** -- visual interface to create, monitor, and manage sessions
-- **Agent + terminal views** -- toggle between your AI agents and paired shell terminals with `t`
 - **Status detection** -- see which agents are running, waiting for input, or idle
+- **Agent + terminal views** -- toggle between your AI agent and a paired shell with `t`
+
+### Workflow
+
 - **Git worktrees** -- run parallel agents on different branches of the same repo
 - **Docker sandboxing** -- isolate agents in containers with shared auth volumes
-- **Diff view** -- review git changes and edit files without leaving the TUI
 - **Per-repo config** -- `.aoe/config.toml` for project-specific settings and hooks
 - **Profiles** -- separate workspaces for different projects or clients
+
+### Extras
+
+- **Diff view** -- review git changes and edit files without leaving the TUI
+- **tmux status bar** -- session info in your tmux status line
 - **CLI and TUI** -- full functionality from both interfaces
 
 ## How It Works
@@ -55,7 +72,7 @@ brew install njbrake/aoe/aoe
 
 # Build from source
 git clone https://github.com/njbrake/agent-of-empires
-cd agent-of-empires && cargo build --release
+cd agent-of-empires && cargo install --path .
 ```
 
 ## Quick Start
@@ -83,8 +100,11 @@ In the TUI: `n` to create a session, `Enter` to attach, `t` to toggle terminal v
 - **[Workflow Guide](https://njbrake.github.io/agent-of-empires/guides/workflow)** -- recommended setup with bare repos and worktrees
 - **[Docker Sandbox](https://njbrake.github.io/agent-of-empires/guides/sandbox)** -- container isolation for agents
 - **[Repo Config & Hooks](https://njbrake.github.io/agent-of-empires/guides/repo-config)** -- per-project settings and automation
+- **[Security Best Practices](https://njbrake.github.io/agent-of-empires/guides/security)** -- credential handling and sandbox security model
 - **[Configuration Reference](https://njbrake.github.io/agent-of-empires/guides/configuration)** -- all config options
 - **[CLI Reference](https://njbrake.github.io/agent-of-empires/cli/reference)** -- complete command documentation
+- **[Troubleshooting](https://njbrake.github.io/agent-of-empires/troubleshooting)** -- common issues and fixes
+- **[Examples](examples/)** -- sample configs for Node, Python, Rust, monorepos, and custom Dockerfiles
 
 ## FAQ
 
@@ -112,6 +132,8 @@ Use `Ctrl+b L` to toggle back to `aoe` after attaching to an agent session.
 ### Claude Code is flickering
 
 This is a known Claude Code issue, not an aoe problem: https://github.com/anthropics/claude-code/issues/1913
+
+See the full [Troubleshooting guide](https://njbrake.github.io/agent-of-empires/troubleshooting) for more.
 
 ## Development
 

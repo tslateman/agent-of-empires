@@ -1,0 +1,14 @@
+# Project using a custom sandbox image
+#
+# Build the image first:
+#   docker build -t my-sandbox:latest examples/custom-dockerfile/
+
+[session]
+default_tool = "claude"
+
+[sandbox]
+enabled_by_default = true
+default_image = "my-sandbox:latest"
+environment = ["ANTHROPIC_API_KEY", "DATABASE_URL", "REDIS_URL"]
+volume_ignores = ["node_modules", "target"]
+memory_limit = "8g"

@@ -1,0 +1,21 @@
+# Rust project
+#
+# Ignores the target directory in the Docker mount (build artifacts
+# can be gigabytes and slow down volume syncs).
+
+[hooks]
+on_create = ["cargo fetch"]
+
+[session]
+default_tool = "claude"
+
+[sandbox]
+enabled_by_default = true
+default_image = "ghcr.io/njbrake/aoe-dev-sandbox:latest"
+environment = ["ANTHROPIC_API_KEY"]
+volume_ignores = ["target"]
+cpu_limit = "8"
+memory_limit = "16g"
+
+[worktree]
+enabled = true

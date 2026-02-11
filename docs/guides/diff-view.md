@@ -5,6 +5,7 @@ The diff view lets you review changes between your working directory and a base 
 ## Opening Diff View
 
 From the main screen, press `D` to open the diff view. It shows:
+
 - **Left panel**: List of changed files with status indicators (M=modified, A=added, D=deleted)
 - **Right panel**: Diff content for the selected file
 
@@ -12,12 +13,12 @@ The diff is computed against the base branch (defaults to `main` or your repo's 
 
 ## Navigation
 
-| Key | Action |
-|-----|--------|
-| `j` / `k` or `↑` / `↓` | Navigate between files |
-| Scroll wheel | Scroll through diff content |
-| `PgUp` / `PgDn` | Page through diff |
-| `g` / `G` | Jump to top / bottom of diff |
+| Key                    | Action                       |
+| ---------------------- | ---------------------------- |
+| `j` / `k` or `↑` / `↓` | Navigate between files       |
+| Scroll wheel           | Scroll through diff content  |
+| `PgUp` / `PgDn`        | Page through diff            |
+| `g` / `G`              | Jump to top / bottom of diff |
 
 ## Editing Files
 
@@ -27,12 +28,12 @@ After saving and exiting, the diff view refreshes automatically to show your cha
 
 ## Other Commands
 
-| Key | Action |
-|-----|--------|
-| `b` | Change base branch |
-| `r` | Refresh the diff |
-| `?` | Show help |
-| `Esc` | Close diff view |
+| Key   | Action             |
+| ----- | ------------------ |
+| `b`   | Change base branch |
+| `r`   | Refresh the diff   |
+| `?`   | Show help          |
+| `Esc` | Close diff view    |
 
 ## Configuration
 
@@ -56,6 +57,7 @@ The diff view shows you where changes are before you edit. For an even better ex
 Install [vim-gitgutter](https://github.com/airblade/vim-gitgutter) or [vim-signify](https://github.com/mhinz/vim-signify). These show `+`, `-`, and `~` markers in the sign column for added, removed, and modified lines.
 
 With vim-plug:
+
 ```vim
 Plug 'airblade/vim-gitgutter'
 ```
@@ -79,3 +81,8 @@ Nano doesn't have a plugin system, so there's no equivalent. Use the diff view t
 5. Save and exit the editor
 6. Continue reviewing (diff auto-refreshes)
 7. Press `Esc` when done
+
+## See Also
+
+- [Workflow Guide](workflow.md) -- how diff view fits into the daily workflow
+- [Configuration Reference](configuration.md) -- diff config options (`default_branch`, `context_lines`)

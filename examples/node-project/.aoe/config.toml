@@ -1,0 +1,21 @@
+# Node.js / TypeScript project
+#
+# Installs dependencies on session creation, ignores node_modules
+# and build artifacts in the Docker mount to avoid slow volume syncs.
+
+[hooks]
+on_create = ["npm install"]
+on_launch = ["npm install"]
+
+[session]
+default_tool = "claude"
+
+[sandbox]
+enabled_by_default = true
+default_image = "ghcr.io/njbrake/aoe-dev-sandbox:latest"
+environment = ["ANTHROPIC_API_KEY", "NODE_ENV"]
+volume_ignores = ["node_modules", ".next", "dist", ".turbo"]
+memory_limit = "8g"
+
+[worktree]
+enabled = true

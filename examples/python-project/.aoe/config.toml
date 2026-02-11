@@ -1,0 +1,21 @@
+# Python project (using uv)
+#
+# Creates a virtual environment on first session, installs dependencies,
+# and ignores .venv in the Docker mount.
+
+[hooks]
+on_create = ["uv venv", "uv pip install -r requirements.txt"]
+on_launch = ["uv pip install -r requirements.txt"]
+
+[session]
+default_tool = "claude"
+
+[sandbox]
+enabled_by_default = true
+default_image = "ghcr.io/njbrake/aoe-dev-sandbox:latest"
+environment = ["ANTHROPIC_API_KEY", "VIRTUAL_ENV"]
+volume_ignores = [".venv", "__pycache__", ".mypy_cache", ".pytest_cache"]
+memory_limit = "8g"
+
+[worktree]
+enabled = true

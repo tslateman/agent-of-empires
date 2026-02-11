@@ -16,7 +16,9 @@
 - [Git Worktrees](guides/worktrees.md)
 - [Diff View](guides/diff-view.md)
 - [tmux Status Bar](guides/tmux-status-bar.md)
+- [Security Best Practices](guides/security.md)
 - [Sound Effects](sounds.md)
+- [Troubleshooting](troubleshooting.md)
 
 # Reference
 

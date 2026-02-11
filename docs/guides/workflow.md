@@ -46,10 +46,10 @@ Now when you run `aoe` from `my-project/`, new worktrees are created as siblings
 
 Run `aoe` in a single terminal and toggle between views:
 
-| Key | View | Purpose |
-|-----|------|---------|
-| (default) | Agent View | Manage and interact with AI coding agents |
-| `t` | Terminal View | Access paired terminals for git, builds, tests |
+| Key       | View          | Purpose                                        |
+| --------- | ------------- | ---------------------------------------------- |
+| (default) | Agent View    | Manage and interact with AI coding agents      |
+| `t`       | Terminal View | Access paired terminals for git, builds, tests |
 
 ### Daily Workflow
 
@@ -77,6 +77,7 @@ You'll see your sessions in Agent View. Keep one session on `main` for general q
 - Press `Enter`
 
 This creates:
+
 - A new branch from your current HEAD
 - A new worktree at `./feat-auth-refactor/`
 - A new session with an agent working in that worktree
@@ -108,15 +109,15 @@ This creates:
 
 ## Keyboard Reference
 
-| Key | Action |
-|-----|--------|
-| `t` | Toggle between Agent View and Terminal View |
-| `D` | Open [Diff View](diff-view.md) to review git changes |
-| `Enter` | Attach to agent (Agent View) or terminal (Terminal View) |
-| `n` | Create new session |
-| `d` | Delete session (Agent View only) |
-| `?` | Show help |
-| `Ctrl+b d` | Detach from tmux (return to aoe) |
+| Key        | Action                                                   |
+| ---------- | -------------------------------------------------------- |
+| `t`        | Toggle between Agent View and Terminal View              |
+| `D`        | Open [Diff View](diff-view.md) to review git changes     |
+| `Enter`    | Attach to agent (Agent View) or terminal (Terminal View) |
+| `n`        | Create new session                                       |
+| `d`        | Delete session (Agent View only)                         |
+| `?`        | Show help                                                |
+| `Ctrl+b d` | Detach from tmux (return to aoe)                         |
 
 ## Non-Bare Repos
 
@@ -131,3 +132,10 @@ If you're not using a bare repo setup, aoe defaults to creating worktrees in a s
 ```
 
 You can customize this with `path_template` in your config. See the [Worktrees Reference](worktrees.md) for details.
+
+## See Also
+
+- [Git Worktrees](worktrees.md) -- worktree configuration, path templates, and cleanup
+- [Docker Sandbox](sandbox.md) -- container isolation (works with bare repos)
+- [Diff View](diff-view.md) -- review changes across worktrees
+- [Repo Config & Hooks](repo-config.md) -- per-project settings and automation

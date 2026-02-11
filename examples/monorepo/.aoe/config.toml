@@ -1,0 +1,32 @@
+# Monorepo with multiple packages
+#
+# Uses bare repo pattern for worktrees (recommended for sandboxing).
+# Each agent session works on a separate branch in its own worktree.
+#
+# Setup:
+#   git clone --bare git@github.com:org/monorepo.git my-monorepo/.bare
+#   cd my-monorepo
+#   echo "gitdir: ./.bare" > .git
+#   git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+#   git fetch origin
+#   git worktree add main main
+
+[hooks]
+on_create = ["npm install"]
+on_launch = ["npm install"]
+
+[session]
+default_tool = "claude"
+
+[sandbox]
+enabled_by_default = true
+default_image = "ghcr.io/njbrake/aoe-dev-sandbox:latest"
+environment = ["ANTHROPIC_API_KEY", "NODE_ENV"]
+volume_ignores = ["node_modules", ".turbo", "dist", ".next"]
+memory_limit = "16g"
+
+[worktree]
+enabled = true
+bare_repo_path_template = "./{branch}"
+auto_cleanup = true
+show_branch_in_tui = true

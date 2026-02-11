@@ -6,11 +6,11 @@ For workflow guidance, see the [Workflow Guide](workflow.md).
 
 ## CLI vs TUI Behavior
 
-| Feature | CLI | TUI |
-|---------|-----|-----|
-| Create new branch | Use `-b` flag | Always creates new branch |
-| Use existing branch | Omit `-b` flag | Not supported |
-| Branch validation | Checks if branch exists | None (always creates) |
+| Feature             | CLI                     | TUI                       |
+| ------------------- | ----------------------- | ------------------------- |
+| Create new branch   | Use `-b` flag           | Always creates new branch |
+| Use existing branch | Omit `-b` flag          | Not supported             |
+| Branch validation   | Checks if branch exists | None (always creates)     |
 
 ## CLI Commands
 
@@ -39,13 +39,13 @@ aoe remove <session> --delete-worktree
 
 ## TUI Keyboard Shortcuts
 
-| Key | Action |
-|-----|--------|
-| `n` | New session dialog |
-| `Tab` | Next field |
-| `Shift+Tab` | Previous field |
-| `Enter` | Submit and create session |
-| `Esc` | Cancel |
+| Key         | Action                    |
+| ----------- | ------------------------- |
+| `n`         | New session dialog        |
+| `Tab`       | Next field                |
+| `Shift+Tab` | Previous field            |
+| `Enter`     | Submit and create session |
+| `Esc`       | Cancel                    |
 
 When creating a session with a worktree branch name in the TUI, it automatically creates a new branch and worktree.
 
@@ -63,11 +63,11 @@ delete_branch_on_cleanup = false
 
 ### Template Variables
 
-| Variable | Description |
-|----------|-------------|
-| `{repo-name}` | Repository folder name |
-| `{branch}` | Branch name (slashes converted to hyphens) |
-| `{session-id}` | First 8 characters of session UUID |
+| Variable       | Description                                |
+| -------------- | ------------------------------------------ |
+| `{repo-name}`  | Repository folder name                     |
+| `{branch}`     | Branch name (slashes converted to hyphens) |
+| `{session-id}` | First 8 characters of session UUID         |
 
 ### Path Template Examples
 
@@ -90,12 +90,12 @@ path_template = "../wt/{branch}-{session-id}"
 
 ## Cleanup Behavior
 
-| Scenario | Cleanup Prompt? |
-|----------|-----------------|
-| aoe-managed worktree | Yes |
-| Manual worktree | No |
+| Scenario                 | Cleanup Prompt?        |
+| ------------------------ | ---------------------- |
+| aoe-managed worktree     | Yes                    |
+| Manual worktree          | No                     |
 | `--delete-worktree` flag | Yes (deletes worktree) |
-| Non-worktree session | No |
+| Non-worktree session     | No                     |
 
 ## Auto-Detection
 
@@ -103,16 +103,23 @@ AOE automatically detects bare repos and uses `bare_repo_path_template` instead 
 
 ## File Locations
 
-| Item | Path |
-|------|------|
-| Config | `~/.agent-of-empires/config.toml` |
+| Item     | Path                                                   |
+| -------- | ------------------------------------------------------ |
+| Config   | `~/.agent-of-empires/config.toml`                      |
 | Sessions | `~/.agent-of-empires/profiles/<profile>/sessions.json` |
 
 ## Error Messages
 
-| Error | Solution |
-|-------|----------|
-| "Not in a git repository" | Navigate to a git repo first |
-| "Worktree already exists" | Use different branch name or add `{session-id}` to template |
-| "Failed to remove worktree" | May need manual cleanup with `git worktree remove` |
-| "Branch already exists" (CLI) | Branch exists; remove `-b` flag to use existing branch |
+| Error                         | Solution                                                    |
+| ----------------------------- | ----------------------------------------------------------- |
+| "Not in a git repository"     | Navigate to a git repo first                                |
+| "Worktree already exists"     | Use different branch name or add `{session-id}` to template |
+| "Failed to remove worktree"   | May need manual cleanup with `git worktree remove`          |
+| "Branch already exists" (CLI) | Branch exists; remove `-b` flag to use existing branch      |
+
+## See Also
+
+- [Workflow Guide](workflow.md) -- recommended bare repo setup and daily workflow
+- [Docker Sandbox](sandbox.md#worktrees-and-sandboxing) -- worktree compatibility with sandboxing
+- [Configuration Reference](configuration.md) -- all worktree config options
+- [Troubleshooting](../troubleshooting.md#git-worktrees) -- common worktree issues

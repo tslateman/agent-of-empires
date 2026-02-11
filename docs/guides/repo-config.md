@@ -121,3 +121,10 @@ enabled = true
 ## Checking Into Version Control
 
 The `.aoe/config.toml` file is meant to be committed to your repo so the entire team shares the same configuration. The hook trust system ensures that each developer explicitly approves hook commands before they run.
+
+## See Also
+
+- [Configuration Reference](configuration.md) -- all config options and precedence
+- [Docker Sandbox](sandbox.md) -- sandbox settings available in repo config
+- [Security Best Practices](security.md) -- hook trust model and credential handling
+- [Git Worktrees](worktrees.md) -- worktree settings available in repo config

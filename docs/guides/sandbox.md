@@ -5,6 +5,7 @@
 Docker sandboxing runs your AI coding agents (Claude Code, OpenCode, Mistral Vibe, Codex CLI, Gemini CLI) inside isolated Docker containers while maintaining access to your project files and credentials.
 
 **Key Features:**
+
 - One container per session
 - Shared authentication across containers (no re-auth needed)
 - Automatic container lifecycle management
@@ -12,12 +13,12 @@ Docker sandboxing runs your AI coding agents (Claude Code, OpenCode, Mistral Vib
 
 ## CLI vs TUI Behavior
 
-| Feature | CLI | TUI |
-|---------|-----|-----|
-| Enable sandbox | `--sandbox` flag | Checkbox toggle |
-| Custom image | `--sandbox-image <image>` | Not supported |
-| Container cleanup | Automatic on remove | Automatic on remove |
-| Keep container | `--keep-container` flag | Not supported |
+| Feature           | CLI                       | TUI                 |
+| ----------------- | ------------------------- | ------------------- |
+| Enable sandbox    | `--sandbox` flag          | Checkbox toggle     |
+| Custom image      | `--sandbox-image <image>` | Not supported       |
+| Container cleanup | Automatic on remove       | Automatic on remove |
+| Keep container    | `--keep-container` flag   | Not supported       |
 
 ## One-Liner Commands
 
@@ -38,7 +39,6 @@ aoe remove <session>
 aoe remove <session> --keep-container
 ```
 
-
 **Note:** In the TUI, the sandbox checkbox only appears when Docker is available on your system.
 
 ## Default Configuration
@@ -56,41 +56,41 @@ environment = ["ANTHROPIC_API_KEY"]
 
 ## Configuration Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `enabled_by_default` | `false` | Auto-enable sandbox for new sessions |
-| `yolo_mode_default` | `false` | Skip agent permission prompts in sandboxed sessions |
-| `default_image` | `ghcr.io/njbrake/aoe-sandbox:latest` | Docker image to use |
-| `auto_cleanup` | `true` | Remove containers when sessions are deleted |
-| `cpu_limit` | (none) | CPU limit (e.g., "4") |
-| `memory_limit` | (none) | Memory limit (e.g., "8g") |
-| `environment` | `[]` | Env var names to pass through from host |
-| `environment_values` | `{}` | Env vars with explicit values to inject (see below) |
-| `volume_ignores` | `[]` | Directories to exclude from the project mount via anonymous volumes |
-| `extra_volumes` | `[]` | Additional volume mounts |
-| `default_terminal_mode` | `"host"` | Paired terminal location: `"host"` (on host machine) or `"container"` (inside Docker) |
+| Option                  | Default                              | Description                                                                           |
+| ----------------------- | ------------------------------------ | ------------------------------------------------------------------------------------- |
+| `enabled_by_default`    | `false`                              | Auto-enable sandbox for new sessions                                                  |
+| `yolo_mode_default`     | `false`                              | Skip agent permission prompts in sandboxed sessions                                   |
+| `default_image`         | `ghcr.io/njbrake/aoe-sandbox:latest` | Docker image to use                                                                   |
+| `auto_cleanup`          | `true`                               | Remove containers when sessions are deleted                                           |
+| `cpu_limit`             | (none)                               | CPU limit (e.g., "4")                                                                 |
+| `memory_limit`          | (none)                               | Memory limit (e.g., "8g")                                                             |
+| `environment`           | `[]`                                 | Env var names to pass through from host                                               |
+| `environment_values`    | `{}`                                 | Env vars with explicit values to inject (see below)                                   |
+| `volume_ignores`        | `[]`                                 | Directories to exclude from the project mount via anonymous volumes                   |
+| `extra_volumes`         | `[]`                                 | Additional volume mounts                                                              |
+| `default_terminal_mode` | `"host"`                             | Paired terminal location: `"host"` (on host machine) or `"container"` (inside Docker) |
 
 ## Volume Mounts
 
 ### Automatic Mounts
 
-| Host Path | Container Path | Mode | Purpose |
-|-----------|----------------|------|---------|
-| Project directory | `/workspace` | RW | Your code |
-| `~/.gitconfig` | `/root/.gitconfig` | RO | Git config |
-| `~/.ssh/` | `/root/.ssh/` | RO | SSH keys |
-| `~/.config/opencode/` | `/root/.config/opencode/` | RO | OpenCode config |
-| `~/.vibe/` | `/root/.vibe/` | RW | Vibe config (if exists) |
+| Host Path             | Container Path            | Mode | Purpose                 |
+| --------------------- | ------------------------- | ---- | ----------------------- |
+| Project directory     | `/workspace`              | RW   | Your code               |
+| `~/.gitconfig`        | `/root/.gitconfig`        | RO   | Git config              |
+| `~/.ssh/`             | `/root/.ssh/`             | RO   | SSH keys                |
+| `~/.config/opencode/` | `/root/.config/opencode/` | RO   | OpenCode config         |
+| `~/.vibe/`            | `/root/.vibe/`            | RW   | Vibe config (if exists) |
 
 ### Persistent Auth Volumes
 
-| Volume Name | Container Path | Purpose |
-|-------------|----------------|---------|
-| `aoe-claude-auth` | `/root/.claude/` | Claude Code credentials |
-| `aoe-opencode-auth` | `/root/.local/share/opencode/` | OpenCode credentials |
-| `aoe-vibe-auth` | `/root/.vibe/` | Mistral Vibe credentials |
-| `aoe-codex-auth` | `/root/.codex/` | Codex CLI credentials |
-| `aoe-gemini-auth` | `/root/.gemini/` | Gemini CLI credentials |
+| Volume Name         | Container Path                 | Purpose                  |
+| ------------------- | ------------------------------ | ------------------------ |
+| `aoe-claude-auth`   | `/root/.claude/`               | Claude Code credentials  |
+| `aoe-opencode-auth` | `/root/.local/share/opencode/` | OpenCode credentials     |
+| `aoe-vibe-auth`     | `/root/.vibe/`                 | Mistral Vibe credentials |
+| `aoe-codex-auth`    | `/root/.codex/`                | Codex CLI credentials    |
+| `aoe-gemini-auth`   | `/root/.gemini/`               | Gemini CLI credentials   |
 
 **Note:** Auth persists across containers. First session requires authentication, subsequent sessions reuse it.
 
@@ -107,10 +107,10 @@ Example: `aoe-sandbox-a1b2c3d4`
 3. **tmux + docker exec:** Host tmux runs `docker exec -it <container> <tool>` (claude, opencode, vibe, codex, or gemini)
 4. **Cleanup:** When you remove the session, the container is automatically deleted
 
-
 ## Environment Variables
 
 These terminal-related variables are **always** passed through for proper UI/theming:
+
 - `TERM`, `COLORTERM`, `FORCE_COLOR`, `NO_COLOR`
 
 Pass additional variables (like API keys) through containers by adding them to config:
@@ -152,10 +152,10 @@ To use a literal value starting with `$`, double it: `$$LITERAL` is injected as 
 
 AOE provides two official sandbox images:
 
-| Image | Description |
-|-------|-------------|
-| `ghcr.io/njbrake/aoe-sandbox:latest` | Base image with Claude Code, OpenCode, Mistral Vibe, Codex CLI, Gemini CLI, git, ripgrep, fzf |
-| `ghcr.io/njbrake/aoe-dev-sandbox:latest` | Extended image with additional dev tools |
+| Image                                    | Description                                                                                   |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `ghcr.io/njbrake/aoe-sandbox:latest`     | Base image with Claude Code, OpenCode, Mistral Vibe, Codex CLI, Gemini CLI, git, ripgrep, fzf |
+| `ghcr.io/njbrake/aoe-dev-sandbox:latest` | Extended image with additional dev tools                                                      |
 
 ### Dev Sandbox Tools
 
@@ -319,3 +319,12 @@ See the [Workflow Guide](workflow.md) for detailed bare repo setup instructions.
    The `MEM LIMIT` column should reflect your configured value.
 
 **Note:** On Linux, Docker runs natively without a VM, so the memory ceiling is your host's physical RAM. You typically only need `memory_limit` on Linux to prevent a single container from consuming all system memory.
+
+## See Also
+
+- [Workflow Guide](workflow.md) -- bare repo setup for sandbox-friendly worktrees
+- [Git Worktrees](worktrees.md) -- worktree configuration and path templates
+- [Security Best Practices](security.md) -- credential handling and sandbox security model
+- [Configuration Reference](configuration.md) -- all sandbox config options
+- [Repo Config & Hooks](repo-config.md) -- per-project sandbox overrides
+- [Troubleshooting](../troubleshooting.md) -- common Docker and sandbox issues
